@@ -1,0 +1,195 @@
+# Casper Sentinel
+
+Built for Casper Agentic Buildathon 2026.
+
+Casper Sentinel is an autonomous VC DAO terminal for Web3, DeFi, and RWA investment governance. A project is submitted once, then specialized AI agents perform diligence, cast reputation-weighted votes, generate an investment committee resolution, and prepare a Casper Testnet proof for the final decision hash.
+
+## Problem
+
+Web3 investment decisions are often fragmented across chats, spreadsheets, opaque analyst notes, and informal governance votes. DAOs and venture teams need a way to make diligence explainable, repeatable, auditable, and verifiable without publishing sensitive internal analysis on-chain.
+
+## Solution
+
+Casper Sentinel turns investment diligence into a structured autonomous workflow:
+
+- Project intake captures whitepaper, repository, and token information.
+- Five AI agents independently evaluate the project.
+- Each agent casts a formal vote.
+- Votes are adjusted by demo reputation scores.
+- An Investment Committee Agent creates the final resolution.
+- A canonical decision payload is hashed with SHA-256.
+- The resolution is prepared for Casper Testnet recording.
+- Demo mode works without OpenAI credentials or Casper Wallet.
+
+## Architecture
+
+Stack:
+
+- Next.js 15 App Router
+- TypeScript
+- Tailwind CSS v4
+- shadcn/ui
+- OpenAI SDK
+- Prisma + SQLite schema
+- Casper Wallet-ready UI
+- Casper Testnet dual-mode recording adapter
+
+Core flow:
+
+```txt
+Landing
+-> Project Intake
+-> AI Agent Analysis
+-> Agent Voting
+-> Committee Resolution
+-> Decision Hash
+-> Casper Testnet Proof
+```
+
+## AI Agents
+
+The Phase 2 engine includes:
+
+- Technical Agent
+- Market Agent
+- Security Agent
+- Compliance Agent
+- Treasury Agent
+
+Each agent returns:
+
+- summary
+- strengths
+- concerns
+- red flags
+- score
+- confidence
+- risk
+- recommendation
+- evidence
+
+When `OPENAI_API_KEY` is missing, the app returns realistic mock outputs so the demo remains reliable.
+
+## Committee And Voting
+
+Phase 3 adds:
+
+- Investment Committee Agent
+- Debate transcript
+- Disagreement detection
+- Formal agent votes
+- Reputation-aware vote weights
+- Final recommendation
+- Investment memo
+- Conditions precedent
+- Decision payload
+- SHA-256 decision hash
+
+Weights:
+
+- Technical: 20%
+- Market: 15%
+- Security: 25%
+- Compliance: 20%
+- Treasury: 20%
+
+Demo trust scores:
+
+- Technical Agent: 86
+- Market Agent: 78
+- Security Agent: 91
+- Compliance Agent: 84
+- Treasury Agent: 81
+
+## Casper Integration
+
+Phase 4 adds a hackathon-safe Casper Testnet recording layer:
+
+- Casper Wallet connection panel
+- Public key display
+- Network display: Casper Testnet
+- Canonical on-chain payload preparation
+- Payload hash
+- Demo-safe transaction proof
+- Real-mode backend RPC attempt for signed transaction/deploy payloads
+- Status states including `READY_FOR_TESTNET_RECORDING`, `DEMO_RECORDED`, and `SUBMITTED`
+
+The app does not submit a real transaction unless a signed Casper payload is supplied. Demo mode always works without a wallet.
+
+## One-Click Demo
+
+Open:
+
+```txt
+http://localhost:3000/demo
+```
+
+Or click `Run Live Demo` from the landing page or dashboard.
+
+The demo runs:
+
+1. Project intake
+2. AI agents analyze
+3. Agent votes
+4. Committee resolution
+5. Casper Testnet proof
+
+## Environment Variables
+
+Copy `.env.example` to `.env`.
+
+```bash
+DATABASE_URL="file:./dev.db"
+OPENAI_API_KEY=""
+OPENAI_MODEL="gpt-4.1-mini"
+CASPER_TESTNET_RPC_URL="https://node.testnet.casper.network/rpc"
+```
+
+Optional:
+
+- Add `OPENAI_API_KEY` to run live OpenAI agent calls.
+- Leave it empty to use demo mode.
+- Add a Casper Wallet extension to test wallet connection UI.
+- Leave wallet disconnected to use demo proof mode.
+
+## Run Locally
+
+```bash
+npm install
+npm run dev
+```
+
+Open:
+
+```txt
+http://localhost:3000
+```
+
+Validation:
+
+```bash
+npm run lint
+npx tsc --noEmit
+npm run build
+```
+
+Prisma:
+
+```bash
+npm run prisma:generate
+npm run prisma:migrate
+npm run prisma:studio
+```
+
+Note: In this Windows environment, Prisma schema validation and client generation work, but SQLite migration execution may fail due to a local Prisma schema-engine issue. The app demo does not depend on database persistence.
+
+## Hackathon Submission Summary
+
+Casper Sentinel demonstrates a production-grade direction for autonomous investment governance:
+
+- AI agents perform transparent Web3/RWA diligence.
+- Agent reputation influences formal votes.
+- The committee generates a defensible DAO resolution.
+- The final decision is reduced to a canonical hash.
+- Casper Testnet recording is prepared through a safe dual-mode adapter.
+- Judges can run the complete flow without API keys, wallets, or testnet funds.

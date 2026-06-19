@@ -1,0 +1,549 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String?  @unique
+  name      String?
+  role      UserRole @default(MEMBER)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  wallets           Wallet[]
+  daoMemberships    DaoMember[]
+  submittedProjects Project[]         @relation("SubmittedProjects")
+  createdProposals  Proposal[]        @relation("CreatedProposals")
+  createdAgents     AgentDefinition[] @relation("CreatedAgents")
+}
+
+model Wallet {
+  id        String   @id @default(cuid())
+  userId    String
+  address   String   @unique
+  chain     Chain    @default(CASPER)
+  network   Network  @default(CASPER_TESTNET)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  memberships DaoMember[]
+
+  @@index([userId])
+}
+
+model Dao {
+  id              String         @id @default(cuid())
+  name            String
+  slug            String         @unique
+  treasuryAddress String?
+  governanceMode  GovernanceMode @default(AUTONOMOUS_AGENT_WEIGHTED)
+  status          DaoStatus      @default(ACTIVE)
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  members        DaoMember[]
+  projects       Project[]
+  proposals      Proposal[]
+  agentConfigs   DaoAgentConfig[]
+  onchainRecords OnchainRecord[]
+}
+
+model DaoMember {
+  id          String        @id @default(cuid())
+  daoId       String
+  userId      String
+  walletId    String?
+  role        DaoMemberRole @default(MEMBER)
+  votingPower Decimal       @default(1)
+  joinedAt    DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  dao    Dao          @relation(fields: [daoId], references: [id], onDelete: Cascade)
+  user   User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  wallet Wallet?      @relation(fields: [walletId], references: [id], onDelete: SetNull)
+  votes  MemberVote[]
+
+  @@unique([daoId, userId])
+  @@index([walletId])
+}
+
+model Project {
+  id            String          @id @default(cuid())
+  daoId         String
+  submittedById String?
+  name          String
+  website       String?
+  githubUrl     String?
+  whitepaperUrl String?
+  tokenSymbol   String?
+  tokenAddress  String?
+  tokenNetwork  String?
+  category      ProjectCategory @default(WEB3)
+  status        ProjectStatus   @default(DRAFT)
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  dao         Dao             @relation(fields: [daoId], references: [id], onDelete: Cascade)
+  submittedBy User?           @relation("SubmittedProjects", fields: [submittedById], references: [id], onDelete: SetNull)
+  submissions Submission[]
+  proposals   Proposal[]
+  evaluations EvaluationRun[]
+
+  @@index([daoId, status])
+  @@index([submittedById])
+}
+
+model Submission {
+  id             String   @id @default(cuid())
+  projectId      String
+  whitepaperText String?
+  githubSnapshot Json?
+  tokenInfo      Json?
+  rawInput       Json
+  createdAt      DateTime @default(now())
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+}
+
+model Proposal {
+  id                String         @id @default(cuid())
+  daoId             String
+  projectId         String?
+  type              ProposalType
+  title             String
+  summary           String?
+  status            ProposalStatus @default(DRAFT)
+  createdById       String?
+  quorumRequired    Decimal        @default(0)
+  approvalThreshold Decimal        @default(0.6)
+  openedAt          DateTime?
+  closedAt          DateTime?
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+
+  dao                 Dao                       @relation(fields: [daoId], references: [id], onDelete: Cascade)
+  project             Project?                  @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  createdBy           User?                     @relation("CreatedProposals", fields: [createdById], references: [id], onDelete: SetNull)
+  evaluations         EvaluationRun[]
+  agentVotes          AgentVote[]
+  memberVotes         MemberVote[]
+  debate              CommitteeDebate?
+  resolution          Resolution?
+  reputationSnapshots AgentReputationSnapshot[]
+  performanceEvents   AgentPerformanceEvent[]
+  onchainRecords      OnchainRecord[]
+
+  @@index([daoId, status])
+  @@index([projectId])
+  @@index([createdById])
+}
+
+model EvaluationRun {
+  id          String           @id @default(cuid())
+  proposalId  String
+  projectId   String
+  status      EvaluationStatus @default(PENDING)
+  startedAt   DateTime?
+  completedAt DateTime?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  proposal  Proposal         @relation(fields: [proposalId], references: [id], onDelete: Cascade)
+  project   Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  agentRuns AgentRun[]
+  debate    CommitteeDebate?
+
+  @@index([proposalId, status])
+  @@index([projectId])
+}
+
+model AgentDefinition {
+  id                String        @id @default(cuid())
+  slug              String        @unique
+  name              String
+  category          AgentCategory
+  description       String
+  creatorUserId     String?
+  creatorWallet     String?
+  origin            AgentOrigin   @default(SYSTEM)
+  status            AgentStatus   @default(ACTIVE)
+  defaultBaseWeight Decimal       @default(1)
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  creator             User?                     @relation("CreatedAgents", fields: [creatorUserId], references: [id], onDelete: SetNull)
+  versions            AgentVersion[]
+  daoConfigs          DaoAgentConfig[]
+  reputation          AgentReputation?
+  reputationSnapshots AgentReputationSnapshot[]
+  performanceEvents   AgentPerformanceEvent[]
+  votes               AgentVote[]
+
+  @@index([category, status])
+  @@index([creatorUserId])
+}
+
+model AgentVersion {
+  id                String   @id @default(cuid())
+  agentDefinitionId String
+  version           String
+  promptVersion     String
+  model             String?
+  toolConfig        Json?
+  manifestHash      String?
+  isActive          Boolean  @default(true)
+  createdAt         DateTime @default(now())
+
+  agentDefinition AgentDefinition @relation(fields: [agentDefinitionId], references: [id], onDelete: Cascade)
+  runs            AgentRun[]
+  votes           AgentVote[]
+
+  @@unique([agentDefinitionId, version])
+  @@index([agentDefinitionId, isActive])
+}
+
+model DaoAgentConfig {
+  id                String   @id @default(cuid())
+  daoId             String
+  agentDefinitionId String
+  enabled           Boolean  @default(true)
+  baseWeight        Decimal  @default(1)
+  maxVoteWeight     Decimal  @default(3)
+  requiredForQuorum Boolean  @default(false)
+  updatedAt         DateTime @updatedAt
+
+  dao             Dao             @relation(fields: [daoId], references: [id], onDelete: Cascade)
+  agentDefinition AgentDefinition @relation(fields: [agentDefinitionId], references: [id], onDelete: Cascade)
+
+  @@unique([daoId, agentDefinitionId])
+  @@index([enabled])
+}
+
+model AgentRun {
+  id              String           @id @default(cuid())
+  evaluationRunId String
+  agentVersionId  String
+  status          EvaluationStatus @default(PENDING)
+  inputHash       String?
+  outputHash      String?
+  score           Int?
+  confidence      Int?
+  risk            Int?
+  recommendation  Recommendation?
+  output          Json?
+  error           String?
+  startedAt       DateTime?
+  completedAt     DateTime?
+  createdAt       DateTime         @default(now())
+
+  evaluationRun EvaluationRun @relation(fields: [evaluationRunId], references: [id], onDelete: Cascade)
+  agentVersion  AgentVersion  @relation(fields: [agentVersionId], references: [id], onDelete: Restrict)
+  vote          AgentVote?
+
+  @@index([evaluationRunId, status])
+  @@index([agentVersionId])
+}
+
+model AgentVote {
+  id                String         @id @default(cuid())
+  proposalId        String
+  agentRunId        String         @unique
+  agentDefinitionId String
+  agentVersionId    String
+  voteChoice        Recommendation
+  voteValue         Int
+  confidence        Int
+  riskScore         Int
+  baseWeight        Decimal
+  trustScoreAtVote  Decimal
+  finalWeight       Decimal
+  reasoningHash     String
+  createdAt         DateTime       @default(now())
+
+  proposal        Proposal        @relation(fields: [proposalId], references: [id], onDelete: Cascade)
+  agentRun        AgentRun        @relation(fields: [agentRunId], references: [id], onDelete: Cascade)
+  agentDefinition AgentDefinition @relation(fields: [agentDefinitionId], references: [id], onDelete: Restrict)
+  agentVersion    AgentVersion    @relation(fields: [agentVersionId], references: [id], onDelete: Restrict)
+
+  @@index([proposalId])
+  @@index([agentDefinitionId])
+}
+
+model AgentReputation {
+  id                 String   @id @default(cuid())
+  agentDefinitionId  String   @unique
+  currentTrustScore  Decimal  @default(0.5)
+  historicalAccuracy Decimal  @default(0)
+  calibrationScore   Decimal  @default(0)
+  domainScore        Decimal  @default(0)
+  agreementRate      Decimal  @default(0)
+  falsePositiveRate  Decimal  @default(0)
+  falseNegativeRate  Decimal  @default(0)
+  totalVotes         Int      @default(0)
+  updatedAt          DateTime @updatedAt
+
+  agentDefinition AgentDefinition @relation(fields: [agentDefinitionId], references: [id], onDelete: Cascade)
+}
+
+model AgentReputationSnapshot {
+  id                String   @id @default(cuid())
+  agentDefinitionId String
+  proposalId        String?
+  trustScore        Decimal
+  metricsJson       Json
+  snapshotHash      String
+  createdAt         DateTime @default(now())
+
+  agentDefinition AgentDefinition @relation(fields: [agentDefinitionId], references: [id], onDelete: Cascade)
+  proposal        Proposal?       @relation(fields: [proposalId], references: [id], onDelete: SetNull)
+
+  @@index([agentDefinitionId, createdAt])
+  @@index([proposalId])
+}
+
+model AgentPerformanceEvent {
+  id                String               @id @default(cuid())
+  agentDefinitionId String
+  proposalId        String?
+  eventType         PerformanceEventType
+  expectedOutcome   String?
+  actualOutcome     String?
+  scoreDelta        Decimal              @default(0)
+  notes             String?
+  createdAt         DateTime             @default(now())
+
+  agentDefinition AgentDefinition @relation(fields: [agentDefinitionId], references: [id], onDelete: Cascade)
+  proposal        Proposal?       @relation(fields: [proposalId], references: [id], onDelete: SetNull)
+
+  @@index([agentDefinitionId, eventType])
+  @@index([proposalId])
+}
+
+model CommitteeDebate {
+  id                  String   @id @default(cuid())
+  proposalId          String   @unique
+  evaluationRunId     String   @unique
+  transcript          Json
+  disagreements       Json
+  weightedVoteSummary Json
+  createdAt           DateTime @default(now())
+
+  proposal      Proposal      @relation(fields: [proposalId], references: [id], onDelete: Cascade)
+  evaluationRun EvaluationRun @relation(fields: [evaluationRunId], references: [id], onDelete: Cascade)
+}
+
+model Resolution {
+  id              String           @id @default(cuid())
+  proposalId      String           @unique
+  recommendation  Recommendation
+  finalScore      Int
+  confidenceScore Int
+  riskScore       Int
+  memo            String
+  decisionPayload Json
+  decisionHash    String           @unique
+  status          ResolutionStatus @default(DRAFT)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  proposal       Proposal        @relation(fields: [proposalId], references: [id], onDelete: Cascade)
+  onchainRecords OnchainRecord[]
+}
+
+model MemberVote {
+  id          String         @id @default(cuid())
+  proposalId  String
+  daoMemberId String
+  voteChoice  Recommendation
+  votingPower Decimal
+  reasonHash  String?
+  createdAt   DateTime       @default(now())
+
+  proposal  Proposal  @relation(fields: [proposalId], references: [id], onDelete: Cascade)
+  daoMember DaoMember @relation(fields: [daoMemberId], references: [id], onDelete: Cascade)
+
+  @@unique([proposalId, daoMemberId])
+  @@index([daoMemberId])
+}
+
+model OnchainRecord {
+  id              String            @id @default(cuid())
+  daoId           String
+  proposalId      String?
+  resolutionId    String?
+  recordType      OnchainRecordType
+  network         Network           @default(CASPER_TESTNET)
+  contractHash    String?
+  transactionHash String?
+  deployHash      String?
+  payloadHash     String
+  explorerUrl     String?
+  status          OnchainStatus     @default(NOT_SUBMITTED)
+  submittedAt     DateTime?
+  confirmedAt     DateTime?
+  rawResponse     Json?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  dao        Dao         @relation(fields: [daoId], references: [id], onDelete: Cascade)
+  proposal   Proposal?   @relation(fields: [proposalId], references: [id], onDelete: SetNull)
+  resolution Resolution? @relation(fields: [resolutionId], references: [id], onDelete: SetNull)
+
+  @@index([daoId, recordType])
+  @@index([proposalId])
+  @@index([resolutionId])
+  @@index([payloadHash])
+}
+
+enum UserRole {
+  MEMBER
+  ANALYST
+  ADMIN
+}
+
+enum Chain {
+  CASPER
+}
+
+enum Network {
+  CASPER_TESTNET
+  CASPER_MAINNET
+}
+
+enum GovernanceMode {
+  AUTONOMOUS_AGENT_WEIGHTED
+  HYBRID_AGENT_MEMBER
+  MEMBER_ONLY
+}
+
+enum DaoStatus {
+  ACTIVE
+  PAUSED
+  ARCHIVED
+}
+
+enum DaoMemberRole {
+  MEMBER
+  STEWARD
+  ADMIN
+}
+
+enum ProjectCategory {
+  WEB3
+  DEFI
+  RWA
+  INFRASTRUCTURE
+  GAMING
+  AI
+}
+
+enum ProjectStatus {
+  DRAFT
+  SUBMITTED
+  PROPOSAL_OPEN
+  ANALYZING
+  VOTING
+  DECIDED
+  ARCHIVED
+}
+
+enum ProposalType {
+  INVESTMENT
+  AGENT_ENABLEMENT
+  AGENT_DISABLEMENT
+  TREASURY
+  GOVERNANCE
+}
+
+enum ProposalStatus {
+  DRAFT
+  AGENT_REVIEW
+  AGENT_VOTING
+  DAO_REVIEW
+  APPROVED
+  REJECTED
+  NEEDS_DILIGENCE
+  ONCHAIN_PENDING
+  ONCHAIN_RECORDED
+  ARCHIVED
+}
+
+enum EvaluationStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
+enum AgentCategory {
+  TECHNICAL
+  MARKET
+  SECURITY
+  COMPLIANCE
+  TREASURY
+  TOKENOMICS
+  RWA
+  GOVERNANCE
+}
+
+enum AgentOrigin {
+  SYSTEM
+  DAO
+  COMMUNITY
+}
+
+enum AgentStatus {
+  ACTIVE
+  DISABLED
+  DEPRECATED
+  REVIEW_REQUIRED
+}
+
+enum Recommendation {
+  STRONG_PASS
+  PASS
+  WATCHLIST
+  DILIGENCE_REQUIRED
+  INVEST_SMALL
+  INVEST
+  HIGH_CONVICTION_INVEST
+}
+
+enum PerformanceEventType {
+  OUTCOME_REVIEW
+  CALIBRATION_UPDATE
+  SECURITY_INCIDENT
+  COMPLIANCE_EVENT
+  ROI_UPDATE
+  HUMAN_OVERRIDE
+}
+
+enum ResolutionStatus {
+  DRAFT
+  FINALIZED
+  RECORDED_ONCHAIN
+  SUPERSEDED
+}
+
+enum OnchainRecordType {
+  DAO_REGISTERED
+  PROPOSAL_CREATED
+  AGENT_VOTE_RECORDED
+  RESOLUTION_FINALIZED
+}
+
+enum OnchainStatus {
+  NOT_SUBMITTED
+  PENDING_SIGNATURE
+  SUBMITTED
+  CONFIRMED
+  FAILED
+}

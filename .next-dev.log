@@ -1,0 +1,15 @@
+
+> casper-sentinel@0.1.0 dev
+> next dev --turbopack
+
+   ▲ Next.js 15.5.19 (Turbopack)
+   - Local:        http://localhost:3000
+   - Network:      http://192.168.1.43:3000
+   - Environments: .env
+
+ ✓ Starting...
+Creating turbopack project { dir: 'G:\\黑客松参赛作品\\casper-sentinel', testMode: true }
+ ✓ Ready in 1186ms
+ ○ Compiling /demo ...
+ ✓ Compiled /demo in 2.5s
+ GET /demo?autorun=1 200 in 3006ms
