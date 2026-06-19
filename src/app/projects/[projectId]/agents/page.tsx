@@ -2,6 +2,7 @@ import Link from "next/link";
 import {
   AlertTriangle,
   ArrowLeft,
+  ArrowRight,
   Banknote,
   BrainCircuit,
   CheckCircle2,
@@ -119,8 +120,8 @@ export default async function AgentAnalysisPage({
             </h1>
             <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
               Five specialized AI agents independently assess the project. This
-              phase stops before committee debate, DAO finalization, and Casper
-              recording.
+              phase feeds weighted voting, adversarial debate, DAO finalization,
+              and Casper recording.
             </p>
           </div>
           <div className="flex flex-col gap-2 sm:flex-row">
@@ -128,8 +129,9 @@ export default async function AgentAnalysisPage({
               <Link href="/projects/new">Submit another project</Link>
             </Button>
             <Button asChild className="h-10 w-full sm:w-fit">
-              <Link href={`/projects/${projectId}/committee`}>
-                Open committee
+              <Link href={`/projects/${projectId}/debate`}>
+                View Debate
+                <ArrowRight className="size-4" />
               </Link>
             </Button>
           </div>

@@ -2,7 +2,7 @@
 
 Built for Casper Agentic Buildathon 2026.
 
-Casper Sentinel is an autonomous VC DAO terminal for Web3, DeFi, and RWA investment governance. A project is submitted once, then specialized AI agents perform diligence, cast reputation-weighted votes, generate an investment committee resolution, and prepare a Casper Testnet proof for the final decision hash.
+Casper Sentinel is an autonomous VC DAO terminal for Web3, DeFi, and RWA investment governance. A project is submitted once, then specialized AI agents perform diligence, cast reputation-weighted votes, debate each other, generate an investment committee resolution, and prepare a Casper Testnet proof for the final decision hash.
 
 ## Problem
 
@@ -16,6 +16,7 @@ Casper Sentinel turns investment diligence into a structured autonomous workflow
 - Five AI agents independently evaluate the project.
 - Each agent casts a formal vote.
 - Votes are adjusted by demo reputation scores.
+- AI agents challenge assumptions, rebut each other, and form consensus.
 - An Investment Committee Agent creates the final resolution.
 - A canonical decision payload is hashed with SHA-256.
 - The resolution is prepared for Casper Testnet recording.
@@ -37,13 +38,17 @@ Stack:
 Core flow:
 
 ```txt
-Landing
--> Project Intake
--> AI Agent Analysis
--> Agent Voting
--> Committee Resolution
--> Decision Hash
--> Casper Testnet Proof
+Project Intake
+↓
+Agent Analysis
+↓
+Weighted Voting
+↓
+AI Debate
+↓
+Committee Resolution
+↓
+Casper Proof
 ```
 
 ## AI Agents
@@ -72,13 +77,18 @@ When `OPENAI_API_KEY` is missing, the app returns realistic mock outputs so the 
 
 ## Committee And Voting
 
-Phase 3 adds:
+Phase 3 and Phase 6 add:
 
 - Investment Committee Agent
 - Debate transcript
 - Disagreement detection
 - Formal agent votes
 - Reputation-aware vote weights
+- AI Committee Debate Engine
+- Agent challenges and rebuttals
+- Consensus score
+- Conflict heat score
+- Debate-adjusted final recommendation
 - Final recommendation
 - Investment memo
 - Conditions precedent
@@ -131,8 +141,20 @@ The demo runs:
 1. Project intake
 2. AI agents analyze
 3. Agent votes
-4. Committee resolution
-5. Casper Testnet proof
+4. AI committee debate
+5. Committee review
+6. Resolution
+7. Casper Testnet proof
+
+## Screenshots
+
+Add final submission screenshots here:
+
+- Landing page
+- One-click judge demo
+- AI Committee Debate Engine
+- Committee resolution
+- Casper proof recording panel
 
 ## Environment Variables
 

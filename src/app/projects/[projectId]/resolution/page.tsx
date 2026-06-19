@@ -1,6 +1,7 @@
 import Link from "next/link";
 import {
   ArrowLeft,
+  ArrowRight,
   CheckCircle2,
   ClipboardCheck,
   Fingerprint,
@@ -91,13 +92,21 @@ export default async function ResolutionPage({ params }: ResolutionPageProps) {
               Casper transaction submission is not active yet.
             </p>
           </div>
-          <Badge
-            variant="outline"
-            className="h-9 rounded-lg border-emerald-300/20 bg-emerald-300/10 px-3 text-emerald-100"
-          >
-            <LockKeyhole className="size-4" />
-            Ready for Casper Testnet recording
-          </Badge>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <Badge
+              variant="outline"
+              className="h-9 rounded-lg border-emerald-300/20 bg-emerald-300/10 px-3 text-emerald-100"
+            >
+              <LockKeyhole className="size-4" />
+              Ready for Casper Testnet recording
+            </Badge>
+            <Button asChild className="h-9">
+              <Link href="#casper-proof">
+                View Casper Proof
+                <ArrowRight className="size-4" />
+              </Link>
+            </Button>
+          </div>
         </section>
 
         <section className="grid gap-4 xl:grid-cols-[360px_1fr]">
@@ -244,16 +253,18 @@ export default async function ResolutionPage({ params }: ResolutionPageProps) {
           </Card>
         </section>
 
-        <CasperRecordingPanel
-          projectId={resolution.projectId}
-          proposalId={resolution.projectId}
-          recommendation={resolution.finalRecommendation}
-          finalScore={resolution.finalScore}
-          confidenceScore={resolution.confidenceScore}
-          riskScore={resolution.riskScore}
-          decisionHash={resolution.decisionHash}
-          timestamp={resolution.generatedAt}
-        />
+        <section id="casper-proof" className="scroll-mt-24">
+          <CasperRecordingPanel
+            projectId={resolution.projectId}
+            proposalId={resolution.projectId}
+            recommendation={resolution.finalRecommendation}
+            finalScore={resolution.finalScore}
+            confidenceScore={resolution.confidenceScore}
+            riskScore={resolution.riskScore}
+            decisionHash={resolution.decisionHash}
+            timestamp={resolution.generatedAt}
+          />
+        </section>
       </div>
     </DaoAppShell>
   );

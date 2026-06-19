@@ -1,0 +1,46 @@
+
+> casper-sentinel@0.1.0 dev
+> next dev --turbopack --hostname 127.0.0.1 --port 3000
+
+   ▲ Next.js 15.5.19 (Turbopack)
+   - Local:        http://127.0.0.1:3000
+   - Network:      http://127.0.0.1:3000
+   - Environments: .env
+
+ ✓ Starting...
+Creating turbopack project { dir: 'G:\\黑客松参赛作品\\casper-sentinel', testMode: true }
+ ✓ Ready in 1216ms
+ ○ Compiling /projects/[projectId]/debate ...
+ ✓ Compiled /projects/[projectId]/debate in 2.9s
+ GET /projects/harbor-rwa-credit/debate 200 in 5155ms
+ GET /projects/harbor-rwa-credit/debate 200 in 1103ms
+ ○ Compiling / ...
+ GET / 200 in 885ms
+ ✓ Compiled / in 923ms
+ POST /api/debate 200 in 1292ms
+ ✓ Compiled /dashboard in 294ms
+ GET /dashboard 200 in 671ms
+ ✓ Compiled /demo in 339ms
+ GET /demo 200 in 509ms
+ ✓ Compiled /projects/new in 280ms
+ GET /projects/new 200 in 592ms
+ ✓ Compiled /projects/[projectId]/agents in 265ms
+ GET /projects/harbor-rwa-credit/agents 200 in 1712ms
+ ✓ Compiled /projects/[projectId]/committee in 468ms
+ GET /projects/harbor-rwa-credit/committee 200 in 1449ms
+ GET /projects/harbor-rwa-credit/debate 200 in 470ms
+ ✓ Compiled /projects/[projectId]/resolution in 373ms
+ GET /projects/harbor-rwa-credit/resolution 200 in 1271ms
+ GET /projects/harbor-rwa-credit/debate 200 in 640ms
+ GET /projects/harbor-rwa-credit/debate 200 in 480ms
+ ✓ Compiled /favicon.ico in 114ms
+ GET /favicon.ico?favicon.0b3bf435.ico 200 in 380ms
+ POST /api/debate 200 in 268ms
+ ✓ Compiled in 75ms
+ ✓ Compiled in 104ms
+ ✓ Compiled in 101ms
+ ✓ Compiled in 136ms
+ ✓ Compiled in 84ms
+ ✓ Compiled in 87ms
+ ✓ Compiled in 77ms
+ ✓ Compiled in 137ms

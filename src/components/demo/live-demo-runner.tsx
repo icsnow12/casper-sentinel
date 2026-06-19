@@ -5,17 +5,23 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import {
   AlertTriangle,
+  ArrowRight,
   Banknote,
   BrainCircuit,
   CheckCircle2,
   Clock3,
   FileCheck2,
   Fingerprint,
+  Flame,
   Gavel,
   LineChart,
   Loader2,
   LockKeyhole,
+  MessageSquareQuote,
+  Network,
+  Scale,
   ShieldCheck,
+  Sparkles,
   Vote,
 } from "lucide-react";
 
@@ -60,6 +66,40 @@ type CommitteeResponse = {
   weightedConfidence: number;
   weightedRisk: number;
   preliminaryRecommendation: string;
+};
+
+type DebateRound = {
+  agentType: AgentOutput["agentType"];
+  agent: string;
+  stance: string;
+  confidence: number;
+  challengeTarget: string;
+  challenge: string;
+  riskLevel: "LOW" | "MEDIUM" | "HIGH";
+};
+
+type DebateResponse = {
+  mode: "openai" | "demo";
+  debateRounds: DebateRound[];
+  rebuttals: {
+    agentType: AgentOutput["agentType"];
+    agent: string;
+    responseTo: string;
+    rebuttal: string;
+  }[];
+  consensus: {
+    finalConsensusScore: number;
+  };
+  finalScore: {
+    score: number;
+    recommendation: "APPROVE" | "REJECT" | "DILIGENCE_REQUIRED";
+    components: {
+      weightedVote: number;
+      debateConsensus: number;
+      agentConfidence: number;
+      reputationTrust: number;
+    };
+  };
 };
 
 type ResolutionResponse = {
@@ -119,10 +159,22 @@ const steps = [
     icon: Vote,
   },
   {
+    key: "debate",
+    title: "AI debate",
+    description: "Agents challenge assumptions, rebut objections, and form consensus.",
+    icon: MessageSquareQuote,
+  },
+  {
+    key: "committee",
+    title: "Committee",
+    description: "The committee locks the governance-ready recommendation inputs.",
+    icon: Gavel,
+  },
+  {
     key: "resolution",
     title: "Committee resolution",
     description: "The committee generates a final recommendation and decision hash.",
-    icon: Gavel,
+    icon: Fingerprint,
   },
   {
     key: "proof",
@@ -146,6 +198,71 @@ function formatLabel(value: string) {
     .split("_")
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(" ");
+}
+
+function riskScore(riskLevel: DebateRound["riskLevel"]) {
+  if (riskLevel === "HIGH") {
+    return 82;
+  }
+
+  if (riskLevel === "MEDIUM") {
+    return 52;
+  }
+
+  return 24;
+}
+
+function conflictHeat(debate: DebateResponse) {
+  const averageRoundRisk =
+    debate.debateRounds.reduce(
+      (total, round) => total + riskScore(round.riskLevel),
+      0
+    ) / debate.debateRounds.length;
+  const consensusGap = 100 - debate.consensus.finalConsensusScore;
+
+  return Math.min(100, Math.round(consensusGap * 0.58 + averageRoundRisk * 0.42));
+}
+
+function conflictLevel(score: number) {
+  if (score >= 85) {
+    return "CRITICAL";
+  }
+
+  if (score >= 65) {
+    return "HIGH";
+  }
+
+  if (score >= 35) {
+    return "MEDIUM";
+  }
+
+  return "LOW";
+}
+
+function debateRecommendationLabel(
+  value: DebateResponse["finalScore"]["recommendation"]
+) {
+  return value === "DILIGENCE_REQUIRED" ? "Diligence Required" : formatLabel(value);
+}
+
+function getDebateHighlights(debate: DebateResponse) {
+  const strongestChallenge = debate.debateRounds.reduce((strongest, round) => {
+    const currentScore = riskScore(round.riskLevel) + round.confidence * 0.2;
+    const strongestScore =
+      riskScore(strongest.riskLevel) + strongest.confidence * 0.2;
+
+    return currentScore > strongestScore ? round : strongest;
+  }, debate.debateRounds[0]);
+  const strongestRebuttal =
+    debate.rebuttals.find(
+      (item) => item.agentType === strongestChallenge.agentType
+    ) ?? debate.rebuttals[0];
+
+  return {
+    strongestChallenge,
+    strongestRebuttal,
+    heatScore: conflictHeat(debate),
+  };
 }
 
 async function postJson<T>(url: string, body: unknown): Promise<T> {
@@ -172,12 +289,15 @@ export function LiveDemoRunner() {
     intake: "pending",
     agents: "pending",
     votes: "pending",
+    debate: "pending",
+    committee: "pending",
     resolution: "pending",
     proof: "pending",
   });
   const [error, setError] = useState<string | null>(null);
   const [evaluation, setEvaluation] = useState<EvaluationResponse | null>(null);
   const [committee, setCommittee] = useState<CommitteeResponse | null>(null);
+  const [debate, setDebate] = useState<DebateResponse | null>(null);
   const [resolution, setResolution] = useState<ResolutionResponse | null>(null);
   const [prepared, setPrepared] = useState<PreparedResponse | null>(null);
   const [proof, setProof] = useState<ProofResponse | null>(null);
@@ -202,6 +322,7 @@ export function LiveDemoRunner() {
     setError(null);
     setEvaluation(null);
     setCommittee(null);
+    setDebate(null);
     setResolution(null);
     setPrepared(null);
     setProof(null);
@@ -209,6 +330,8 @@ export function LiveDemoRunner() {
       intake: "running",
       agents: "pending",
       votes: "pending",
+      debate: "pending",
+      committee: "pending",
       resolution: "pending",
       proof: "pending",
     });
@@ -236,6 +359,19 @@ export function LiveDemoRunner() {
       );
       setCommittee(committeeResult);
       updateStep("votes", "complete");
+      updateStep("debate", "running");
+
+      const debateResult = await postJson<DebateResponse>("/api/debate", {
+        projectId: demoProject.projectId,
+        projectName: demoProject.projectName,
+        agents: evaluationResult.agents,
+      });
+      setDebate(debateResult);
+      updateStep("debate", "complete");
+      updateStep("committee", "running");
+
+      await new Promise((resolve) => setTimeout(resolve, 300));
+      updateStep("committee", "complete");
       updateStep("resolution", "running");
 
       const resolutionResult = await postJson<ResolutionResponse>(
@@ -315,8 +451,8 @@ export function LiveDemoRunner() {
                 </CardTitle>
                 <p className="mt-2 max-w-xl text-sm leading-6 text-muted-foreground">
                   One click runs the full autonomous VC DAO story: intake,
-                  agents, votes, committee resolution, and a Casper Testnet demo
-                  proof.
+                  agents, votes, debate, committee resolution, and a Casper
+                  Testnet demo proof.
                 </p>
               </div>
               <Button
@@ -373,14 +509,57 @@ export function LiveDemoRunner() {
                 <p className="mt-2 truncate text-sm">{value}</p>
               </div>
             ))}
+            <div className="flex flex-col gap-2 sm:col-span-2 sm:flex-row sm:flex-wrap">
+              <Button asChild variant="outline" className="h-9">
+                <Link href="/projects/harbor-rwa-credit/agents">Agents</Link>
+              </Button>
+              <Button asChild variant="outline" className="h-9">
+                <Link href="/projects/harbor-rwa-credit/debate">
+                  View Debate
+                </Link>
+              </Button>
+              <Button asChild variant="outline" className="h-9">
+                <Link href="/projects/harbor-rwa-credit/committee">
+                  View Committee
+                </Link>
+              </Button>
+              <Button asChild variant="outline" className="h-9">
+                <Link href="/projects/harbor-rwa-credit/resolution">
+                  View Resolution
+                </Link>
+              </Button>
+              <Button asChild variant="outline" className="h-9">
+                <Link href="/projects/harbor-rwa-credit/resolution#casper-proof">
+                  View Casper Proof
+                </Link>
+              </Button>
+            </div>
           </CardContent>
         </Card>
       </section>
 
-      <section className="grid gap-3 md:grid-cols-5">
+      <Card className="rounded-lg border-sky-300/20 bg-sky-300/[0.045] shadow-none">
+        <CardHeader className="border-b border-white/10 pb-4">
+          <div className="flex items-center gap-3">
+            <Network className="size-5 text-sky-200" />
+            <CardTitle>Why this matters</CardTitle>
+          </div>
+        </CardHeader>
+        <CardContent className="pt-2">
+          <p className="max-w-5xl text-sm leading-7 text-muted-foreground">
+            Traditional DAOs rely on manual governance. Casper Sentinel
+            introduces autonomous investment committees where specialized AI
+            agents evaluate opportunities, challenge assumptions, form
+            consensus, and generate verifiable Casper decision records.
+          </p>
+        </CardContent>
+      </Card>
+
+      <section className="grid gap-3 md:grid-cols-7">
         {steps.map((step) => {
           const Icon = step.icon;
           const itemStatus = stepStatus[step.key];
+          const debateHighlights = debate ? getDebateHighlights(debate) : null;
 
           return (
             <div
@@ -395,10 +574,30 @@ export function LiveDemoRunner() {
               <p className="mt-2 text-xs leading-5 text-muted-foreground">
                 {step.description}
               </p>
+              {step.key === "debate" && debate && debateHighlights ? (
+                <div className="mt-3 space-y-2 border-t border-white/10 pt-3">
+                  <MiniSignal
+                    label="Consensus"
+                    value={`${debate.consensus.finalConsensusScore}`}
+                  />
+                  <MiniSignal
+                    label="Conflict"
+                    value={conflictLevel(debateHighlights.heatScore)}
+                  />
+                  <MiniSignal
+                    label="Verdict"
+                    value={debateRecommendationLabel(
+                      debate.finalScore.recommendation
+                    )}
+                  />
+                </div>
+              ) : null}
             </div>
           );
         })}
       </section>
+
+      {debate ? <DemoDebatePanel debate={debate} /> : null}
 
       <section className="grid gap-4 xl:grid-cols-[1fr_0.9fr]">
         <Card className="rounded-lg border-white/10 bg-white/[0.035] shadow-none">
@@ -463,7 +662,27 @@ export function LiveDemoRunner() {
               }
             />
             <SummaryRow
+              icon={MessageSquareQuote}
+              label="AI debate"
+              value={
+                debate
+                  ? `${debateRecommendationLabel(
+                      debate.finalScore.recommendation
+                    )} / ${debate.consensus.finalConsensusScore} consensus`
+                  : "Pending"
+              }
+            />
+            <SummaryRow
               icon={Gavel}
+              label="Committee"
+              value={
+                committee
+                  ? `${formatLabel(committee.preliminaryRecommendation)} ready`
+                  : "Pending"
+              }
+            />
+            <SummaryRow
+              icon={Fingerprint}
               label="Resolution"
               value={
                 resolution
@@ -502,15 +721,31 @@ export function LiveDemoRunner() {
             ) : null}
 
             {status === "complete" ? (
-              <div className="flex flex-col gap-2 pt-2 sm:flex-row">
+              <div className="flex flex-col gap-2 pt-2 sm:flex-row sm:flex-wrap">
                 <Button asChild className="h-10">
-                  <Link href="/projects/harbor-rwa-credit/resolution">
-                    Open final resolution
+                  <Link href="/projects/harbor-rwa-credit/agents">
+                    Agents
+                    <ArrowRight className="size-4" />
+                  </Link>
+                </Button>
+                <Button asChild variant="outline" className="h-10">
+                  <Link href="/projects/harbor-rwa-credit/debate">
+                    View Debate
                   </Link>
                 </Button>
                 <Button asChild variant="outline" className="h-10">
                   <Link href="/projects/harbor-rwa-credit/committee">
-                    View committee
+                    View Committee
+                  </Link>
+                </Button>
+                <Button asChild variant="outline" className="h-10">
+                  <Link href="/projects/harbor-rwa-credit/resolution">
+                    View Resolution
+                  </Link>
+                </Button>
+                <Button asChild variant="outline" className="h-10">
+                  <Link href="/projects/harbor-rwa-credit/resolution#casper-proof">
+                    View Casper Proof
                   </Link>
                 </Button>
               </div>
@@ -518,6 +753,124 @@ export function LiveDemoRunner() {
           </CardContent>
         </Card>
       </section>
+    </div>
+  );
+}
+
+function MiniSignal({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-center justify-between gap-2 text-xs">
+      <span className="text-muted-foreground">{label}</span>
+      <span className="truncate font-mono text-emerald-100">{value}</span>
+    </div>
+  );
+}
+
+function DemoDebatePanel({ debate }: { debate: DebateResponse }) {
+  const highlights = getDebateHighlights(debate);
+  const heatLevel = conflictLevel(highlights.heatScore);
+  const recommendation = debateRecommendationLabel(
+    debate.finalScore.recommendation
+  );
+
+  return (
+    <Card className="rounded-lg border-amber-200/20 bg-amber-200/[0.045] shadow-none">
+      <CardHeader className="border-b border-white/10 pb-4">
+        <div className="flex flex-col justify-between gap-3 lg:flex-row lg:items-center">
+          <div>
+            <CardTitle className="text-2xl">Debate intelligence</CardTitle>
+            <p className="mt-1 text-sm text-muted-foreground">
+              The one-click demo now pauses for adversarial agent reasoning
+              before committee finalization.
+            </p>
+          </div>
+          <Badge className="h-8 rounded-lg border border-amber-200/20 bg-amber-200/10 px-3 text-amber-100">
+            {recommendation}
+          </Badge>
+        </div>
+      </CardHeader>
+      <CardContent className="grid gap-4 pt-2 xl:grid-cols-[1.15fr_0.85fr]">
+        <div className="grid gap-3">
+          <DebateStoryBlock
+            icon={MessageSquareQuote}
+            label="Strongest challenge"
+            title={`${highlights.strongestChallenge.agent} challenges ${highlights.strongestChallenge.challengeTarget}`}
+            value={highlights.strongestChallenge.challenge}
+          />
+          <DebateStoryBlock
+            icon={ShieldCheck}
+            label="Strongest rebuttal"
+            title={`${highlights.strongestRebuttal.agent} responds to ${highlights.strongestRebuttal.responseTo}`}
+            value={highlights.strongestRebuttal.rebuttal}
+          />
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
+          <DemoMetricTile
+            icon={Scale}
+            label="Consensus score"
+            value={`${debate.consensus.finalConsensusScore}`}
+            detail="Shared committee position"
+          />
+          <DemoMetricTile
+            icon={Flame}
+            label="Conflict heat"
+            value={heatLevel}
+            detail={`${highlights.heatScore}/100 heat score`}
+          />
+          <DemoMetricTile
+            icon={Sparkles}
+            label="Final debate recommendation"
+            value={recommendation}
+            detail={`${debate.finalScore.score}/100 Phase 6 score`}
+          />
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function DebateStoryBlock({
+  icon: Icon,
+  label,
+  title,
+  value,
+}: {
+  icon: typeof Vote;
+  label: string;
+  title: string;
+  value: string;
+}) {
+  return (
+    <div className="rounded-lg border border-white/10 bg-black/20 p-4">
+      <div className="flex items-center gap-2 text-xs uppercase text-muted-foreground">
+        <Icon className="size-4 text-amber-200" />
+        {label}
+      </div>
+      <h2 className="mt-3 text-base font-semibold">{title}</h2>
+      <p className="mt-2 text-sm leading-6 text-muted-foreground">{value}</p>
+    </div>
+  );
+}
+
+function DemoMetricTile({
+  icon: Icon,
+  label,
+  value,
+  detail,
+}: {
+  icon: typeof Vote;
+  label: string;
+  value: string;
+  detail: string;
+}) {
+  return (
+    <div className="rounded-lg border border-white/10 bg-black/20 p-4">
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-xs uppercase text-muted-foreground">{label}</p>
+        <Icon className="size-5 text-emerald-200" />
+      </div>
+      <p className="mt-3 font-mono text-3xl text-emerald-100">{value}</p>
+      <p className="mt-1 text-xs text-muted-foreground">{detail}</p>
     </div>
   );
 }

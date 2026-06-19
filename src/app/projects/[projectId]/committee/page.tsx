@@ -95,9 +95,9 @@ export default async function CommitteePage({ params }: CommitteePageProps) {
         <section className="flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
           <div>
             <Button asChild variant="ghost" size="sm" className="mb-3 px-0">
-              <Link href={`/projects/${projectId}/agents`}>
+              <Link href={`/projects/${projectId}/debate`}>
                 <ArrowLeft className="size-4" />
-                Agent analysis
+                AI debate
               </Link>
             </Button>
             <Badge className="rounded-lg border border-amber-200/20 bg-amber-200/10 text-amber-100">
@@ -114,7 +114,7 @@ export default async function CommitteePage({ params }: CommitteePageProps) {
           </div>
           <Button asChild className="h-10 w-full sm:w-fit">
             <Link href={`/projects/${projectId}/resolution`}>
-              Final resolution
+              View Resolution
               <ArrowRight className="size-4" />
             </Link>
           </Button>

@@ -1,0 +1,52 @@
+
+> casper-sentinel@0.1.0 dev
+> next dev --turbopack --hostname 127.0.0.1 --port 3000
+
+   ▲ Next.js 15.5.19 (Turbopack)
+   - Local:        http://127.0.0.1:3000
+   - Network:      http://127.0.0.1:3000
+   - Environments: .env
+
+ ✓ Starting...
+Creating turbopack project { dir: 'G:\\黑客松参赛作品\\casper-sentinel', testMode: true }
+ ✓ Ready in 1598ms
+ ○ Compiling /demo ...
+ ✓ Compiled /demo in 3.1s
+ GET /demo 200 in 3600ms
+ ✓ Compiled /projects/[projectId]/agents in 284ms
+ GET /projects/harbor-rwa-credit/agents 200 in 1352ms
+ ○ Compiling /projects/[projectId]/debate ...
+ ✓ Compiled /projects/[projectId]/debate in 586ms
+ GET /projects/harbor-rwa-credit/debate 200 in 2190ms
+ ✓ Compiled /projects/[projectId]/committee in 372ms
+ GET /projects/harbor-rwa-credit/committee 200 in 1330ms
+ ✓ Compiled /projects/[projectId]/resolution in 363ms
+ GET /projects/harbor-rwa-credit/resolution 200 in 1262ms
+ GET /demo 200 in 176ms
+ GET /projects/harbor-rwa-credit/agents 200 in 358ms
+ GET /projects/harbor-rwa-credit/debate 200 in 354ms
+ GET /projects/harbor-rwa-credit/committee 200 in 200ms
+ GET /projects/harbor-rwa-credit/resolution 200 in 208ms
+ GET /demo 200 in 179ms
+ ✓ Compiled / in 302ms
+ GET / 200 in 426ms
+ GET /demo?autorun=1 200 in 96ms
+ ○ Compiling /api/evaluations ...
+ ✓ Compiled /api/evaluations in 570ms
+ POST /api/evaluations 200 in 1054ms
+ POST /api/evaluations 200 in 1053ms
+ ✓ Compiled /api/committee in 280ms
+ POST /api/committee 200 in 585ms
+ POST /api/committee 200 in 581ms
+ ✓ Compiled /api/debate in 187ms
+ POST /api/debate 200 in 468ms
+ POST /api/debate 200 in 481ms
+ ✓ Compiled /api/resolution in 213ms
+ POST /api/resolution 200 in 503ms
+ POST /api/resolution 200 in 491ms
+ ✓ Compiled /api/casper/prepare in 132ms
+ POST /api/casper/prepare 200 in 433ms
+ POST /api/casper/prepare 200 in 429ms
+ ✓ Compiled /api/casper/submit in 123ms
+ POST /api/casper/submit 200 in 404ms
+ POST /api/casper/submit 200 in 413ms
