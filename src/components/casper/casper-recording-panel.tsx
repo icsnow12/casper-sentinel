@@ -34,7 +34,6 @@ type CasperWalletProvider = {
   requestConnection: () => Promise<boolean>;
   getActivePublicKey: () => Promise<string>;
   disconnectFromSite: () => Promise<boolean>;
-  sign?: (payload: string, publicKey: string) => Promise<unknown>;
   isConnected?: () => Promise<boolean>;
 };
 
@@ -68,7 +67,11 @@ function getProvider() {
 }
 
 function statusTone(status: CasperRecordingStatus) {
-  if (status === "CONFIRMED" || status === "DEMO_RECORDED") {
+  if (
+    status === "CONFIRMED" ||
+    status === "DEMO_RECORDED" ||
+    status === "DEMO_PROOF"
+  ) {
     return "border-emerald-300/20 bg-emerald-300/10 text-emerald-100";
   }
 
@@ -84,7 +87,11 @@ function statusTone(status: CasperRecordingStatus) {
 }
 
 function statusIcon(status: CasperRecordingStatus) {
-  if (status === "CONFIRMED" || status === "DEMO_RECORDED") {
+  if (
+    status === "CONFIRMED" ||
+    status === "DEMO_RECORDED" ||
+    status === "DEMO_PROOF"
+  ) {
     return CheckCircle2;
   }
 
@@ -107,6 +114,16 @@ function formatStatus(status: CasperRecordingStatus) {
     .join(" ");
 }
 
+function modeLabel(proof: CasperSubmitResponse | null, prepared: CasperPreparedTransaction | null) {
+  const mode = proof?.mode ?? prepared?.mode;
+
+  if (mode === "REAL") {
+    return proof ? "REAL TESTNET" : "REAL TESTNET READY";
+  }
+
+  return proof ? "DEMO PROOF" : "CASPER TESTNET-READY";
+}
+
 export function CasperRecordingPanel(props: CasperRecordingPanelProps) {
   const [publicKey, setPublicKey] = useState<string | null>(null);
   const [walletError, setWalletError] = useState<string | null>(null);
@@ -122,6 +139,7 @@ export function CasperRecordingPanel(props: CasperRecordingPanelProps) {
   const StatusIcon = statusIcon(status);
   const walletConnected = Boolean(publicKey);
   const currentTimestamp = proof?.submittedAt ?? prepared?.payload.timestamp ?? props.timestamp;
+  const displayMode = modeLabel(proof, prepared);
 
   const prepareBody = useMemo(
     () => ({
@@ -144,7 +162,7 @@ export function CasperRecordingPanel(props: CasperRecordingPanelProps) {
     if (!provider) {
       setStatus("WALLET_REQUIRED");
       setWalletError(
-        "Casper Wallet extension was not detected. Demo recording is still available."
+        "Casper Wallet extension was not detected. Demo proof mode and server-side Testnet submission remain available."
       );
       return;
     }
@@ -207,30 +225,7 @@ export function CasperRecordingPanel(props: CasperRecordingPanelProps) {
 
     try {
       const preparedPayload = prepared ?? (await prepareRecording());
-      let signedPayload: unknown;
-
-      if (!options.demo && publicKey) {
-        setStatus("SIGNATURE_PENDING");
-        const provider = getProvider();
-
-        if (!provider?.sign) {
-          throw new Error(
-            "Casper Wallet signing API was not available. Falling back to demo proof."
-          );
-        }
-
-        signedPayload = await provider.sign(
-          JSON.stringify({
-            type: "CasperSentinelResolutionRecord",
-            signingMessage: preparedPayload.signingMessage,
-            payload: preparedPayload.payload,
-            payloadHash: preparedPayload.payloadHash,
-          }),
-          publicKey
-        );
-      }
-
-      setStatus(options.demo || !publicKey ? "WALLET_REQUIRED" : "SUBMITTED");
+      setStatus(options.demo ? "DEMO_PROOF" : "SUBMITTED");
 
       const response = await fetch("/api/casper/submit", {
         method: "POST",
@@ -240,8 +235,7 @@ export function CasperRecordingPanel(props: CasperRecordingPanelProps) {
         body: JSON.stringify({
           prepared: preparedPayload,
           accountPublicKey: publicKey ?? undefined,
-          signature: signedPayload,
-          forceDemo: options.demo || !signedPayload,
+          forceDemo: options.demo,
         }),
       });
 
@@ -252,6 +246,12 @@ export function CasperRecordingPanel(props: CasperRecordingPanelProps) {
       const result = (await response.json()) as CasperSubmitResponse;
       setProof(result);
       setStatus(result.status);
+
+      if (!options.demo && result.mode !== "REAL") {
+        setWalletError(
+          "Real Testnet mode is not active on this server. Demo proof mode was recorded instead."
+        );
+      }
     } catch (error) {
       const preparedPayload = prepared ?? (await prepareRecording());
       const fallback = await fetch("/api/casper/submit", {
@@ -273,7 +273,7 @@ export function CasperRecordingPanel(props: CasperRecordingPanelProps) {
         setWalletError(
           error instanceof Error
             ? error.message
-            : "Real signing failed; demo proof was recorded."
+            : "Real Testnet submission failed; demo proof was recorded."
         );
       } else {
         setStatus("FAILED");
@@ -296,15 +296,22 @@ export function CasperRecordingPanel(props: CasperRecordingPanelProps) {
     setIsBusy(true);
 
     try {
-      const response = await fetch(
-        `/api/casper/status?transactionHash=${proof.transactionHash}&mode=${proof.mode}`
-      );
+      const query = new URLSearchParams({
+        transactionHash: proof.transactionHash,
+        mode: proof.mode,
+      });
+
+      if (proof.contractHash) {
+        query.set("contractHash", proof.contractHash);
+      }
+
+      const response = await fetch(`/api/casper/status?${query.toString()}`);
 
       if (!response.ok) {
         throw new Error("Unable to refresh Casper proof status.");
       }
 
-      const result = await response.json();
+      const result = (await response.json()) as { status: CasperRecordingStatus };
       setStatus(result.status);
     } catch (error) {
       setStatus("FAILED");
@@ -327,7 +334,7 @@ export function CasperRecordingPanel(props: CasperRecordingPanelProps) {
             <div>
               <CardTitle>Casper Testnet recording</CardTitle>
               <p className="mt-1 text-sm text-muted-foreground">
-                Dual-mode proof layer for final DAO resolution hashes.
+                Real Testnet deploy path with honest demo proof fallback.
               </p>
             </div>
           </div>
@@ -350,7 +357,7 @@ export function CasperRecordingPanel(props: CasperRecordingPanelProps) {
                 Casper Wallet
               </div>
               <Badge variant="outline" className="rounded-lg">
-                {walletConnected ? "Connected" : "Disconnected"}
+                {walletConnected ? "Connected" : "Optional"}
               </Badge>
             </div>
             <div className="mt-3 space-y-2 text-sm">
@@ -358,13 +365,22 @@ export function CasperRecordingPanel(props: CasperRecordingPanelProps) {
                 <span className="text-muted-foreground">Network</span>
                 <span>Casper Testnet</span>
               </div>
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-muted-foreground">Mode</span>
+                <span>{displayMode}</span>
+              </div>
               <div className="flex items-start justify-between gap-3">
-                <span className="text-muted-foreground">Public key</span>
+                <span className="text-muted-foreground">Wallet key</span>
                 <span className="max-w-[220px] truncate text-right font-mono text-xs text-emerald-100">
                   {publicKey ?? "Not connected"}
                 </span>
               </div>
             </div>
+            <p className="mt-3 text-xs leading-5 text-muted-foreground">
+              Wallet connection is used to display the judge/founder account. The
+              real deploy is submitted only when the server has a configured
+              Casper Testnet contract hash and signing key path.
+            </p>
             <div className="mt-4 flex flex-col gap-2 sm:flex-row">
               {walletConnected ? (
                 <Button
@@ -409,6 +425,20 @@ export function CasperRecordingPanel(props: CasperRecordingPanelProps) {
               type="button"
               className="h-10"
               disabled={isBusy}
+              onClick={() => submitRecording({ demo: false })}
+            >
+              {isBusy ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                <KeyRound className="size-4" />
+              )}
+              Submit real Testnet deploy
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              className="h-10"
+              disabled={isBusy}
               onClick={() => submitRecording({ demo: true })}
             >
               {isBusy ? (
@@ -420,26 +450,12 @@ export function CasperRecordingPanel(props: CasperRecordingPanelProps) {
             </Button>
             <Button
               type="button"
-              variant="outline"
-              className="h-10"
-              disabled={isBusy || !walletConnected}
-              onClick={() => submitRecording({ demo: false })}
-            >
-              {isBusy ? (
-                <Loader2 className="size-4 animate-spin" />
-              ) : (
-                <KeyRound className="size-4" />
-              )}
-              Sign and submit testnet proof
-            </Button>
-            <Button
-              type="button"
               variant="ghost"
               className="h-10"
               disabled={isBusy || !proof}
               onClick={refreshStatus}
             >
-              Refresh proof status
+              Refresh confirmation status
             </Button>
           </div>
         </div>
@@ -455,18 +471,22 @@ export function CasperRecordingPanel(props: CasperRecordingPanelProps) {
           </div>
 
           <div className="grid gap-3 md:grid-cols-2">
+            <ProofField label="Network" value="Casper Testnet" />
+            <ProofField label="Verification status" value={formatStatus(status)} />
             <ProofField
-              label="Transaction hash"
-              value={proof?.transactionHash ?? "Not recorded"}
+              label="Contract hash"
+              value={proof?.contractHash ?? prepared?.contractHash ?? "Not configured"}
             />
+            <ProofField
+              label="Deploy hash"
+              value={proof?.deployHash ?? proof?.transactionHash ?? "Not submitted"}
+            />
+            <ProofField label="Project ID" value={props.projectId} />
+            <ProofField label="Final score" value={`${props.finalScore}`} />
             <ProofField label="Timestamp" value={currentTimestamp} />
             <ProofField
               label="Payload hash"
               value={prepared?.payloadHash ?? "Prepared on submit"}
-            />
-            <ProofField
-              label="Mode"
-              value={proof ? `${proof.mode} / ${proof.status}` : "Ready"}
             />
           </div>
 
@@ -482,8 +502,9 @@ export function CasperRecordingPanel(props: CasperRecordingPanelProps) {
             </a>
           ) : (
             <div className="rounded-lg border border-white/10 bg-black/20 p-3 text-sm text-muted-foreground">
-              On-chain proof status will appear here after demo or testnet
-              recording.
+              A real deploy hash and explorer link appear here only after the
+              Casper Testnet RPC accepts the deploy. Demo proof mode is labeled
+              separately and does not claim on-chain confirmation.
             </div>
           )}
         </div>

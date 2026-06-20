@@ -299,7 +299,7 @@ export async function getCasperRecordingStatus(
       network: CASPER_TESTNET.network,
       chainName: CASPER_TESTNET.chainName,
       contractHash,
-      status: "DEMO_RECORDED",
+      status: "DEMO_PROOF",
       transactionHash,
       explorerUrl: buildExplorerUrl(transactionHash),
       checkedAt,
@@ -308,20 +308,47 @@ export async function getCasperRecordingStatus(
     });
   }
 
-  return casperStatusResponseSchema.parse({
-    mode: "REAL",
-    network: CASPER_TESTNET.network,
-    chainName: CASPER_TESTNET.chainName,
-    contractHash,
-    status: "SUBMITTED",
-    transactionHash,
-    explorerUrl: buildExplorerUrl(transactionHash),
-    checkedAt,
-    message:
-      "Real Testnet deploy was submitted. Use CSPR.live or queryResolution for contract-state verification.",
-  });
-}
+  try {
+    const deploy = await rpcCall<{
+      result?: { execution_results?: unknown[] };
+    }>("info_get_deploy", [
+      {
+        deploy_hash: transactionHash,
+      },
+    ]);
+    const executionResults = deploy.result?.execution_results;
+    const confirmed = Array.isArray(executionResults) && executionResults.length > 0;
 
+    return casperStatusResponseSchema.parse({
+      mode: "REAL",
+      network: CASPER_TESTNET.network,
+      chainName: CASPER_TESTNET.chainName,
+      contractHash,
+      status: confirmed ? "CONFIRMED" : "SUBMITTED",
+      transactionHash,
+      explorerUrl: buildExplorerUrl(transactionHash),
+      checkedAt,
+      message: confirmed
+        ? "Casper Testnet deploy has execution results. Verify details in the explorer."
+        : "Casper Testnet deploy was submitted and is awaiting execution results.",
+    });
+  } catch (error) {
+    return casperStatusResponseSchema.parse({
+      mode: "REAL",
+      network: CASPER_TESTNET.network,
+      chainName: CASPER_TESTNET.chainName,
+      contractHash,
+      status: "SUBMITTED",
+      transactionHash,
+      explorerUrl: buildExplorerUrl(transactionHash),
+      checkedAt,
+      message:
+        error instanceof Error
+          ? `Deploy submitted, but status lookup is not confirmed yet: ${error.message}`
+          : "Deploy submitted, but status lookup is not confirmed yet.",
+    });
+  }
+}
 async function rpcCall<T>(method: string, params: unknown): Promise<T> {
   const response = await fetch(env.CASPER_TESTNET_RPC_URL, {
     method: "POST",
@@ -415,3 +442,4 @@ export async function queryResolution(
     });
   }
 }
+

@@ -7,6 +7,7 @@ export const casperRecordingStatusSchema = z.enum([
   "SUBMITTED",
   "CONFIRMED",
   "FAILED",
+  "DEMO_PROOF",
   "DEMO_RECORDED",
 ]);
 
