@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { ZodError } from "zod";
 
 import { casperSubmitRequestSchema } from "@/server/casper/schemas";
-import { submitCasperRecording } from "@/server/casper/transaction-service";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -11,6 +10,9 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
     const input = casperSubmitRequestSchema.parse(body);
+    const { submitCasperRecording } = await import(
+      "@/server/casper/transaction-service"
+    );
     const result = await submitCasperRecording(input);
 
     return NextResponse.json(result);

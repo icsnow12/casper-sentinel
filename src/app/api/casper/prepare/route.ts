@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { ZodError } from "zod";
 
-import { buildPreparedTransaction } from "@/server/casper/payload";
 import { casperPrepareRequestSchema } from "@/server/casper/schemas";
 
 export const runtime = "nodejs";
@@ -11,8 +10,11 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
     const input = casperPrepareRequestSchema.parse(body);
+    const { prepareDeploy } = await import(
+      "@/server/casper/transaction-service"
+    );
 
-    return NextResponse.json(buildPreparedTransaction(input));
+    return NextResponse.json(prepareDeploy(input));
   } catch (error) {
     if (error instanceof SyntaxError) {
       return NextResponse.json(

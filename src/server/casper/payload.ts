@@ -53,27 +53,34 @@ export function buildCanonicalCasperPayload(
 
 export function buildPreparedTransaction(
   input: CasperPrepareRequest,
-  mode: "REAL" | "DEMO" = "REAL"
+  mode: "REAL" | "DEMO" = "DEMO",
+  contractHash?: string
 ): CasperPreparedTransaction {
   const payload = buildCanonicalCasperPayload(input);
   const payloadHash = sha256Hex(payload);
+  const contractLine = contractHash ? `Contract hash: ${contractHash}` : null;
 
   return casperPreparedTransactionSchema.parse({
     mode,
     network: CASPER_TESTNET.network,
     chainName: CASPER_TESTNET.chainName,
+    contractHash,
     payload,
     payloadHash,
     status: "READY_FOR_TESTNET_RECORDING",
     signingMessage: [
       "Casper Sentinel DAO Resolution",
+      contractLine,
       `Project: ${payload.projectId}`,
       `Proposal: ${payload.proposalId}`,
       `Recommendation: ${payload.recommendation}`,
+      `Final score: ${payload.finalScore}`,
       `Decision hash: ${payload.decisionHash}`,
       `Payload hash: ${payloadHash}`,
       `Timestamp: ${payload.timestamp}`,
-    ].join("\n"),
+    ]
+      .filter(Boolean)
+      .join("\n"),
     preparedAt: new Date().toISOString(),
   });
 }

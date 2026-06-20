@@ -48,6 +48,7 @@ export const casperPreparedTransactionSchema = z.object({
   mode: z.enum(["REAL", "DEMO"]),
   network: casperNetworkSchema,
   chainName: z.literal("casper-test"),
+  contractHash: z.string().min(1).optional(),
   payload: casperOnchainPayloadSchema,
   payloadHash: z.string().regex(/^[a-f0-9]{64}$/),
   status: casperRecordingStatusSchema,
@@ -68,6 +69,7 @@ export const casperSubmitResponseSchema = z.object({
   mode: z.enum(["REAL", "DEMO"]),
   network: casperNetworkSchema,
   chainName: z.literal("casper-test"),
+  contractHash: z.string().min(1).optional(),
   status: casperRecordingStatusSchema,
   transactionHash: z.string().regex(/^[a-f0-9]{64}$/),
   deployHash: z.string().regex(/^[a-f0-9]{64}$/).optional(),
@@ -84,9 +86,22 @@ export const casperStatusResponseSchema = z.object({
   mode: z.enum(["REAL", "DEMO"]),
   network: casperNetworkSchema,
   chainName: z.literal("casper-test"),
+  contractHash: z.string().min(1).optional(),
   status: casperRecordingStatusSchema,
   transactionHash: z.string().regex(/^[a-f0-9]{64}$/),
   explorerUrl: z.string().url(),
+  checkedAt: z.string().min(1),
+  message: z.string(),
+});
+
+export const casperResolutionQuerySchema = z.object({
+  mode: z.enum(["REAL", "DEMO"]),
+  network: casperNetworkSchema,
+  chainName: z.literal("casper-test"),
+  contractHash: z.string().min(1).optional(),
+  proposalId: z.string().min(1),
+  exists: z.boolean(),
+  resolution: z.string().optional(),
   checkedAt: z.string().min(1),
   message: z.string(),
 });
@@ -100,3 +115,4 @@ export type CasperPreparedTransaction = z.infer<
 export type CasperSubmitRequest = z.infer<typeof casperSubmitRequestSchema>;
 export type CasperSubmitResponse = z.infer<typeof casperSubmitResponseSchema>;
 export type CasperStatusResponse = z.infer<typeof casperStatusResponseSchema>;
+export type CasperResolutionQuery = z.infer<typeof casperResolutionQuerySchema>;
