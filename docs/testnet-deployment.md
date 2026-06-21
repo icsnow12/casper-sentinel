@@ -1,6 +1,8 @@
-# Casper Testnet Deployment
+﻿# Casper Testnet Deployment
 
 Casper Sentinel keeps demo mode reliable while adding a real Casper Testnet deploy path for final resolution records.
+
+For the shortest deploy-hash runbook, see docs/phase-7b-real-deploy.md.
 
 ## Why A Contract Is Needed
 
@@ -82,3 +84,4 @@ Use `state_get_dictionary_item` with dictionary name `resolutions` and key `prop
 - Do not put private keys or seed phrases in the repo.
 - Keep Vercel in demo proof mode unless you have a secure server-side signer.
 - Confirmation is conservative: `SUBMITTED` means RPC accepted the deploy; `CONFIRMED` appears only after execution results are returned.
+
