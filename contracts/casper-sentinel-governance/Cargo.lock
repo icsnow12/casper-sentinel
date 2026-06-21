@@ -72,7 +72,6 @@ checksum = "d42901eb5b09bb79e7d7403642e70983ccac0f4812edf1de77d978abea5f3299"
 dependencies = [
  "casper-types",
  "hex_fmt",
- "wee_alloc",
 ]
 
 [[package]]
@@ -81,6 +80,7 @@ version = "0.1.0"
 dependencies = [
  "casper-contract",
  "casper-types",
+ "wee_alloc",
 ]
 
 [[package]]

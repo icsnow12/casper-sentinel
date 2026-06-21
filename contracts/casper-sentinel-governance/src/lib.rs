@@ -4,14 +4,15 @@
 extern crate alloc;
 
 use alloc::{format, string::String, vec};
+use core::panic::PanicInfo;
 
 use casper_contract::{
     contract_api::{runtime, storage},
     unwrap_or_revert::UnwrapOrRevert,
 };
 use casper_types::{
-    account::AccountHash, ApiError, CLType, CLValue, EntryPoint, EntryPointAccess,
-    EntryPointPayment, EntryPointType, EntryPoints, Key, NamedKeys, Parameter, URef,
+    account::AccountHash, contracts::NamedKeys, ApiError, CLType, CLValue, EntryPoint,
+    EntryPointAccess, EntryPointType, EntryPoints, Key, Parameter, URef,
 };
 
 const CONTRACT_HASH_KEY: &str = "casper_sentinel_governance_contract_hash";
@@ -28,6 +29,14 @@ const ERROR_EMPTY_DECISION_HASH: u16 = 5;
 const ERROR_INVALID_FINAL_SCORE: u16 = 6;
 const ERROR_EMPTY_RECOMMENDATION: u16 = 7;
 const ERROR_EMPTY_TIMESTAMP: u16 = 8;
+
+#[global_allocator]
+static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
+
+#[panic_handler]
+fn panic(_: &PanicInfo) -> ! {
+    loop {}
+}
 
 fn revert(code: u16) -> ! {
     runtime::revert(ApiError::User(code))
@@ -169,7 +178,6 @@ fn entry_points() -> EntryPoints {
         CLType::Unit,
         EntryPointAccess::Public,
         EntryPointType::Contract,
-        EntryPointPayment::Caller,
     ));
 
     entry_points.add_entry_point(EntryPoint::new(
@@ -178,7 +186,6 @@ fn entry_points() -> EntryPoints {
         CLType::String,
         EntryPointAccess::Public,
         EntryPointType::Contract,
-        EntryPointPayment::Caller,
     ));
 
     entry_points.add_entry_point(EntryPoint::new(
@@ -187,7 +194,6 @@ fn entry_points() -> EntryPoints {
         CLType::Bool,
         EntryPointAccess::Public,
         EntryPointType::Contract,
-        EntryPointPayment::Caller,
     ));
 
     entry_points

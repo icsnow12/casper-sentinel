@@ -4,8 +4,9 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-casper-contract = "4"
+casper-contract = { version = "4", default-features = false }
 casper-types = "4"
+wee_alloc = "0.4"
 
 [lib]
 crate-type = ["cdylib"]
