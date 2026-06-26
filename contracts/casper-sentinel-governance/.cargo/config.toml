@@ -1,2 +1,12 @@
+[unstable]
+build-std = ["core", "alloc", "compiler_builtins"]
+
 [target.wasm32-unknown-unknown]
-rustflags = ["-C", "link-arg=--allow-undefined"]
+rustflags = [
+  "-C",
+  "target-cpu=mvp",
+  "-C",
+  "target-feature=-bulk-memory",
+  "-C",
+  "link-arg=--allow-undefined",
+]
