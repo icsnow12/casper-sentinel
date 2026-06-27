@@ -230,4 +230,4 @@ Casper Sentinel demonstrates a production-grade direction for autonomous investm
 - The committee generates a defensible DAO resolution.
 - The final decision is reduced to a canonical hash.
 - Casper Testnet recording is prepared through a safe dual-mode adapter.
-- Judges can run the complete flow without API keys, wallets, or testnet funds.
+- Judges can run the full AI governance demo without keys. The real Casper Testnet proof is publicly verifiable on CSPR.live. To submit a new on-chain proof, use the documented Testnet deployment flow with your own funded Casper Testnet key.
