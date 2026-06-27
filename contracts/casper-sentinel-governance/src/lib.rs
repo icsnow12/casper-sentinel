@@ -11,13 +11,14 @@ use casper_contract::{
     unwrap_or_revert::UnwrapOrRevert,
 };
 use casper_types::{
-    account::AccountHash, contracts::NamedKeys, ApiError, CLType, CLValue, EntryPoint,
-    EntryPointAccess, EntryPointType, EntryPoints, Key, Parameter, URef,
+    account::AccountHash, contracts::NamedKeys, ApiError, CLType, CLValue, EntityEntryPoint,
+    EntryPointAccess, EntryPointPayment, EntryPointType, EntryPoints, Key, Parameter, URef,
 };
 
 const CONTRACT_HASH_KEY: &str = "casper_sentinel_governance_contract_hash";
 const CONTRACT_PACKAGE_HASH_KEY: &str = "casper_sentinel_governance_package_hash";
 const CONTRACT_ACCESS_UREF_KEY: &str = "casper_sentinel_governance_access_uref";
+const CONTRACT_VERSION_KEY: &str = "casper_sentinel_governance_contract_version";
 const OWNER_KEY: &str = "owner";
 const RESOLUTIONS_DICT: &str = "resolutions";
 
@@ -165,7 +166,7 @@ pub extern "C" fn resolution_exists() {
 fn entry_points() -> EntryPoints {
     let mut entry_points = EntryPoints::new();
 
-    entry_points.add_entry_point(EntryPoint::new(
+    entry_points.add_entry_point(EntityEntryPoint::new(
         "record_resolution",
         vec![
             Parameter::new("proposal_id", CLType::String),
@@ -177,23 +178,26 @@ fn entry_points() -> EntryPoints {
         ],
         CLType::Unit,
         EntryPointAccess::Public,
-        EntryPointType::Contract,
+        EntryPointType::Called,
+        EntryPointPayment::Caller,
     ));
 
-    entry_points.add_entry_point(EntryPoint::new(
+    entry_points.add_entry_point(EntityEntryPoint::new(
         "get_resolution",
         vec![Parameter::new("proposal_id", CLType::String)],
         CLType::String,
         EntryPointAccess::Public,
-        EntryPointType::Contract,
+        EntryPointType::Called,
+        EntryPointPayment::Caller,
     ));
 
-    entry_points.add_entry_point(EntryPoint::new(
+    entry_points.add_entry_point(EntityEntryPoint::new(
         "resolution_exists",
         vec![Parameter::new("proposal_id", CLType::String)],
         CLType::Bool,
         EntryPointAccess::Public,
-        EntryPointType::Contract,
+        EntryPointType::Called,
+        EntryPointPayment::Caller,
     ));
 
     entry_points
@@ -201,6 +205,7 @@ fn entry_points() -> EntryPoints {
 
 #[no_mangle]
 pub extern "C" fn call() {
+    // Installation intentionally reads no runtime arguments.
     let owner = storage::new_uref(runtime::get_caller());
     let resolutions = storage::new_dictionary(RESOLUTIONS_DICT).unwrap_or_revert();
 
@@ -208,12 +213,17 @@ pub extern "C" fn call() {
     named_keys.insert(OWNER_KEY.into(), Key::URef(owner));
     named_keys.insert(RESOLUTIONS_DICT.into(), Key::URef(resolutions));
 
-    let (contract_hash, _contract_version) = storage::new_contract(
+    let (contract_hash, contract_version) = storage::new_contract(
         entry_points(),
         Some(named_keys),
         Some(CONTRACT_PACKAGE_HASH_KEY.into()),
         Some(CONTRACT_ACCESS_UREF_KEY.into()),
+        None,
     );
 
     runtime::put_key(CONTRACT_HASH_KEY, contract_hash.into());
+    runtime::put_key(
+        CONTRACT_VERSION_KEY,
+        storage::new_uref(contract_version).into(),
+    );
 }
