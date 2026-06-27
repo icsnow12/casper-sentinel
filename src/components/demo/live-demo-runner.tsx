@@ -27,6 +27,7 @@ import {
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { FeaturedTestnetProof } from "@/components/casper/featured-testnet-proof";
 import {
   Card,
   CardContent,
@@ -179,7 +180,8 @@ const steps = [
   {
     key: "proof",
     title: "Casper Testnet proof",
-    description: "The decision hash is prepared and recorded through demo-safe proof.",
+    description:
+      "The demo uses a safe fallback while showcasing Casper Sentinel's verified real Testnet deployment.",
     icon: LockKeyhole,
   },
 ] as const;
@@ -451,8 +453,8 @@ export function LiveDemoRunner() {
                 </CardTitle>
                 <p className="mt-2 max-w-xl text-sm leading-6 text-muted-foreground">
                   One click runs the full autonomous VC DAO story: intake,
-                  agents, votes, debate, committee resolution, and a Casper
-                  Testnet demo proof.
+                  agents, votes, debate, committee resolution, a safe demo
+                  receipt, and verified real Casper Testnet proof.
                 </p>
               </div>
               <Button
@@ -652,6 +654,8 @@ export function LiveDemoRunner() {
             </p>
           </CardHeader>
           <CardContent className="space-y-3 pt-2">
+            <FeaturedTestnetProof />
+
             <SummaryRow
               icon={Vote}
               label="Agent votes"
@@ -699,7 +703,7 @@ export function LiveDemoRunner() {
             />
             <SummaryRow
               icon={LockKeyhole}
-              label="Casper proof"
+              label="Current demo run"
               value={
                 proof
                   ? `${proof.status} / ${proof.transactionHash.slice(0, 12)}...`
@@ -714,9 +718,9 @@ export function LiveDemoRunner() {
                 href={proof.explorerUrl}
                 target="_blank"
                 rel="noreferrer"
-                className="block rounded-lg border border-emerald-300/20 bg-emerald-300/10 p-3 text-sm text-emerald-100 hover:bg-emerald-300/15"
+                className="block rounded-lg border border-amber-200/20 bg-amber-200/[0.06] p-3 text-sm text-amber-100 hover:bg-amber-200/10"
               >
-                {proof.network} proof: {proof.explorerUrl}
+                Demo fallback receipt, not on-chain: {proof.transactionHash}
               </a>
             ) : null}
 

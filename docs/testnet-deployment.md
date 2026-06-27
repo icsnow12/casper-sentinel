@@ -4,6 +4,20 @@ Casper Sentinel keeps demo mode reliable while adding a real Casper Testnet depl
 
 For the shortest deploy-hash runbook, see docs/phase-7b-real-deploy.md.
 
+## Successful Testnet Deployment
+
+The Casper Sentinel governance contract was successfully deployed to Casper Testnet. This is a real public transaction, not a generated demo proof.
+
+- Status: `Success`
+- Deploy hash: `3b9a6bccffbc4d1a9972973cb469c038be903a4c452abf1d38136e803b9cfce6`
+- Explorer: [View the transaction on Testnet CSPR.live](https://testnet.cspr.live/transaction/3b9a6bccffbc4d1a9972973cb469c038be903a4c452abf1d38136e803b9cfce6)
+- Transaction payment: `100 CSPR`
+- Consumed gas: `65.29352 CSPR`
+- Charged amount: `73.97014 CSPR`
+- Caller: `02034b5cccf5c4276ce33c7deddb067392530e2b115862c3a179f55f9349fa45cd22`
+
+No private key or seed phrase is stored or documented in this repository.
+
 ## Why A Contract Is Needed
 
 A native Casper transfer can create a deploy hash, but it cannot store the full resolution payload in queryable contract state. Phase 7A therefore uses a minimal resolution-recorder contract, not a DAO treasury contract.
@@ -29,7 +43,7 @@ casper-client put-deploy \
   --node-address https://node.testnet.casper.network/rpc \
   --chain-name casper-test \
   --secret-key /absolute/path/to/secret_key.pem \
-  --payment-amount 3000000000 \
+  --payment-amount 100000000000 \
   --session-path target/wasm32-unknown-unknown/release/casper_sentinel_governance.wasm
 ```
 

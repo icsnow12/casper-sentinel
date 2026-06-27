@@ -4,6 +4,20 @@ Built for Casper Agentic Buildathon 2026.
 
 Casper Sentinel is an autonomous VC DAO terminal for Web3, DeFi, and RWA investment governance. A project is submitted once, then specialized AI agents perform diligence, cast reputation-weighted votes, debate each other, generate an investment committee resolution, and prepare a Casper Testnet proof for the final decision hash.
 
+## Real Casper Testnet Proof
+
+Casper Sentinel's governance contract was successfully deployed in a real Casper Testnet transaction. This is public on-chain proof, not a mock or demo receipt.
+
+- **Status:** Success
+- **Deploy hash:** [`3b9a6bccffbc4d1a9972973cb469c038be903a4c452abf1d38136e803b9cfce6`](https://testnet.cspr.live/transaction/3b9a6bccffbc4d1a9972973cb469c038be903a4c452abf1d38136e803b9cfce6)
+- **Network:** Casper Testnet
+- **Transaction payment:** 100 CSPR
+- **Consumed gas:** 65.29352 CSPR
+- **Charged amount:** 73.97014 CSPR
+- **Caller:** `02034b5cccf5c4276ce33c7deddb067392530e2b115862c3a179f55f9349fa45cd22`
+
+The application still uses demo proof fallback when real Testnet signing configuration is unavailable, and labels that mode separately.
+
 ## Problem
 
 Web3 investment decisions are often fragmented across chats, spreadsheets, opaque analyst notes, and informal governance votes. DAOs and venture teams need a way to make diligence explainable, repeatable, auditable, and verifiable without publishing sensitive internal analysis on-chain.
@@ -19,7 +33,7 @@ Casper Sentinel turns investment diligence into a structured autonomous workflow
 - AI agents challenge assumptions, rebut each other, and form consensus.
 - An Investment Committee Agent creates the final resolution.
 - A canonical decision payload is hashed with SHA-256.
-- The resolution is prepared for Casper Testnet recording.
+- The resolution is prepared for real Casper Testnet recording.
 - Demo mode works without OpenAI credentials or Casper Wallet.
 
 ## Architecture
@@ -34,6 +48,7 @@ Stack:
 - Prisma + SQLite schema
 - Casper Wallet-ready UI
 - Casper Testnet dual-mode recording adapter
+- Verified real Casper Testnet contract deployment
 
 Core flow:
 
@@ -122,9 +137,10 @@ Phase 4 adds a hackathon-safe Casper Testnet recording layer:
 - Payload hash
 - Demo-safe transaction proof
 - Real-mode backend RPC attempt for signed transaction/deploy payloads
+- Featured successful Testnet deployment with a public explorer link
 - Status states including `READY_FOR_TESTNET_RECORDING`, `DEMO_RECORDED`, and `SUBMITTED`
 
-The app does not submit a real transaction unless a signed Casper payload is supplied. Demo mode always works without a wallet.
+The app submits new real transactions only when server-side Testnet signing configuration or a signed Casper payload is available. Demo mode remains the fallback and never claims on-chain confirmation.
 
 ## One-Click Demo
 

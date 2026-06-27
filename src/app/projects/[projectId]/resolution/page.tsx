@@ -89,7 +89,8 @@ export default async function ResolutionPage({ params }: ResolutionPageProps) {
             </h1>
             <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
               The Investment Committee has produced a hashable decision payload.
-              Casper transaction submission is not active yet.
+              A successful governance contract deployment is verified on Casper
+              Testnet, while new recordings retain an honest demo fallback.
             </p>
           </div>
           <div className="flex flex-col gap-2 sm:flex-row">
@@ -98,7 +99,7 @@ export default async function ResolutionPage({ params }: ResolutionPageProps) {
               className="h-9 rounded-lg border-emerald-300/20 bg-emerald-300/10 px-3 text-emerald-100"
             >
               <LockKeyhole className="size-4" />
-              Ready for Casper Testnet recording
+              Real Testnet proof available
             </Badge>
             <Button asChild className="h-9">
               <Link href="#casper-proof">
@@ -239,7 +240,7 @@ export default async function ResolutionPage({ params }: ResolutionPageProps) {
                 ["Decision payload", "Canonicalized"],
                 ["SHA-256 hash", "Generated"],
                 ["Wallet signature", "Optional in demo mode"],
-                ["Testnet submission", "Dual-mode adapter"],
+                ["Testnet deployment", "Verified on-chain"],
               ].map(([label, value]) => (
                 <div
                   key={label}

@@ -17,6 +17,7 @@ import {
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { FeaturedTestnetProof } from "@/components/casper/featured-testnet-proof";
 import {
   Card,
   CardContent,
@@ -348,165 +349,180 @@ export function CasperRecordingPanel(props: CasperRecordingPanelProps) {
         </div>
       </CardHeader>
 
-      <CardContent className="grid gap-4 pt-2 xl:grid-cols-[0.85fr_1.15fr]">
-        <div className="space-y-3">
-          <div className="rounded-lg border border-white/10 bg-black/20 p-3">
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-2 text-sm font-medium">
-                <Wallet className="size-4 text-emerald-200" />
-                Casper Wallet
-              </div>
-              <Badge variant="outline" className="rounded-lg">
-                {walletConnected ? "Connected" : "Optional"}
-              </Badge>
-            </div>
-            <div className="mt-3 space-y-2 text-sm">
+      <CardContent className="space-y-5 pt-5">
+        <FeaturedTestnetProof />
+
+        <div className="grid gap-4 xl:grid-cols-[0.85fr_1.15fr]">
+          <div className="space-y-3">
+            <div className="rounded-lg border border-white/10 bg-black/20 p-3">
               <div className="flex items-center justify-between gap-3">
-                <span className="text-muted-foreground">Network</span>
-                <span>Casper Testnet</span>
+                <div className="flex items-center gap-2 text-sm font-medium">
+                  <Wallet className="size-4 text-emerald-200" />
+                  Casper Wallet
+                </div>
+                <Badge variant="outline" className="rounded-lg">
+                  {walletConnected ? "Connected" : "Optional"}
+                </Badge>
               </div>
-              <div className="flex items-center justify-between gap-3">
-                <span className="text-muted-foreground">Mode</span>
-                <span>{displayMode}</span>
+              <div className="mt-3 space-y-2 text-sm">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-muted-foreground">Network</span>
+                  <span>Casper Testnet</span>
+                </div>
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-muted-foreground">Mode</span>
+                  <span>{displayMode}</span>
+                </div>
+                <div className="flex items-start justify-between gap-3">
+                  <span className="text-muted-foreground">Wallet key</span>
+                  <span className="max-w-[220px] truncate text-right font-mono text-xs text-emerald-100">
+                    {publicKey ?? "Not connected"}
+                  </span>
+                </div>
               </div>
-              <div className="flex items-start justify-between gap-3">
-                <span className="text-muted-foreground">Wallet key</span>
-                <span className="max-w-[220px] truncate text-right font-mono text-xs text-emerald-100">
-                  {publicKey ?? "Not connected"}
-                </span>
-              </div>
-            </div>
-            <p className="mt-3 text-xs leading-5 text-muted-foreground">
-              Wallet connection is used to display the judge/founder account. The
-              real deploy is submitted only when the server has a configured
-              Casper Testnet contract hash and signing key path.
-            </p>
-            <div className="mt-4 flex flex-col gap-2 sm:flex-row">
-              {walletConnected ? (
+              <p className="mt-3 text-xs leading-5 text-muted-foreground">
+                Wallet connection is used to display the judge/founder account.
+                The real deploy is submitted only when the server has a configured
+                Casper Testnet contract hash and signing key path.
+              </p>
+              <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+                {walletConnected ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={disconnectWallet}
+                  >
+                    <PlugZap className="size-4" />
+                    Disconnect
+                  </Button>
+                ) : (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={connectWallet}
+                  >
+                    <KeyRound className="size-4" />
+                    Connect wallet
+                  </Button>
+                )}
                 <Button
                   type="button"
-                  variant="outline"
+                  variant="ghost"
                   size="sm"
-                  onClick={disconnectWallet}
+                  onClick={() =>
+                    navigator.clipboard.writeText(props.decisionHash)
+                  }
                 >
-                  <PlugZap className="size-4" />
-                  Disconnect
+                  <Copy className="size-4" />
+                  Copy decision hash
                 </Button>
-              ) : (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={connectWallet}
-                >
+              </div>
+              {walletError ? (
+                <p className="mt-3 text-xs leading-5 text-amber-100">
+                  {walletError}
+                </p>
+              ) : null}
+            </div>
+
+            <div className="grid gap-2">
+              <Button
+                type="button"
+                className="h-10"
+                disabled={isBusy}
+                onClick={() => submitRecording({ demo: false })}
+              >
+                {isBusy ? (
+                  <Loader2 className="size-4 animate-spin" />
+                ) : (
                   <KeyRound className="size-4" />
-                  Connect wallet
-                </Button>
-              )}
+                )}
+                Submit real Testnet deploy
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                className="h-10"
+                disabled={isBusy}
+                onClick={() => submitRecording({ demo: true })}
+              >
+                {isBusy ? (
+                  <Loader2 className="size-4 animate-spin" />
+                ) : (
+                  <ShieldCheck className="size-4" />
+                )}
+                Record demo proof
+              </Button>
               <Button
                 type="button"
                 variant="ghost"
-                size="sm"
-                onClick={() => navigator.clipboard.writeText(props.decisionHash)}
+                className="h-10"
+                disabled={isBusy || !proof}
+                onClick={refreshStatus}
               >
-                <Copy className="size-4" />
-                Copy decision hash
+                Refresh confirmation status
               </Button>
             </div>
-            {walletError ? (
-              <p className="mt-3 text-xs leading-5 text-amber-100">
-                {walletError}
+          </div>
+
+          <div className="space-y-3">
+            <div className="rounded-lg border border-white/10 bg-black/20 p-3">
+              <p className="text-xs uppercase text-muted-foreground">
+                Decision hash
               </p>
-            ) : null}
-          </div>
-
-          <div className="grid gap-2">
-            <Button
-              type="button"
-              className="h-10"
-              disabled={isBusy}
-              onClick={() => submitRecording({ demo: false })}
-            >
-              {isBusy ? (
-                <Loader2 className="size-4 animate-spin" />
-              ) : (
-                <KeyRound className="size-4" />
-              )}
-              Submit real Testnet deploy
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              className="h-10"
-              disabled={isBusy}
-              onClick={() => submitRecording({ demo: true })}
-            >
-              {isBusy ? (
-                <Loader2 className="size-4 animate-spin" />
-              ) : (
-                <ShieldCheck className="size-4" />
-              )}
-              Record demo proof
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              className="h-10"
-              disabled={isBusy || !proof}
-              onClick={refreshStatus}
-            >
-              Refresh confirmation status
-            </Button>
-          </div>
-        </div>
-
-        <div className="space-y-3">
-          <div className="rounded-lg border border-white/10 bg-black/20 p-3">
-            <p className="text-xs uppercase text-muted-foreground">
-              Decision hash
-            </p>
-            <p className="mt-2 break-all font-mono text-sm text-emerald-100">
-              {props.decisionHash}
-            </p>
-          </div>
-
-          <div className="grid gap-3 md:grid-cols-2">
-            <ProofField label="Network" value="Casper Testnet" />
-            <ProofField label="Verification status" value={formatStatus(status)} />
-            <ProofField
-              label="Contract hash"
-              value={proof?.contractHash ?? prepared?.contractHash ?? "Not configured"}
-            />
-            <ProofField
-              label="Deploy hash"
-              value={proof?.deployHash ?? proof?.transactionHash ?? "Not submitted"}
-            />
-            <ProofField label="Project ID" value={props.projectId} />
-            <ProofField label="Final score" value={`${props.finalScore}`} />
-            <ProofField label="Timestamp" value={currentTimestamp} />
-            <ProofField
-              label="Payload hash"
-              value={prepared?.payloadHash ?? "Prepared on submit"}
-            />
-          </div>
-
-          {proof ? (
-            <a
-              href={proof.explorerUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="flex items-center justify-between gap-3 rounded-lg border border-emerald-300/20 bg-emerald-300/10 p-3 text-sm text-emerald-100 transition hover:bg-emerald-300/15"
-            >
-              <span className="truncate">{proof.explorerUrl}</span>
-              <ExternalLink className="size-4 shrink-0" />
-            </a>
-          ) : (
-            <div className="rounded-lg border border-white/10 bg-black/20 p-3 text-sm text-muted-foreground">
-              A real deploy hash and explorer link appear here only after the
-              Casper Testnet RPC accepts the deploy. Demo proof mode is labeled
-              separately and does not claim on-chain confirmation.
+              <p className="mt-2 break-all font-mono text-sm text-emerald-100">
+                {props.decisionHash}
+              </p>
             </div>
-          )}
+
+            <div className="grid gap-3 md:grid-cols-2">
+              <ProofField label="Network" value="Casper Testnet" />
+              <ProofField
+                label="Verification status"
+                value={formatStatus(status)}
+              />
+              <ProofField
+                label="Contract hash"
+                value={
+                  proof?.contractHash ??
+                  prepared?.contractHash ??
+                  "Not configured"
+                }
+              />
+              <ProofField
+                label="Deploy hash"
+                value={
+                  proof?.deployHash ?? proof?.transactionHash ?? "Not submitted"
+                }
+              />
+              <ProofField label="Project ID" value={props.projectId} />
+              <ProofField label="Final score" value={`${props.finalScore}`} />
+              <ProofField label="Timestamp" value={currentTimestamp} />
+              <ProofField
+                label="Payload hash"
+                value={prepared?.payloadHash ?? "Prepared on submit"}
+              />
+            </div>
+
+            {proof ? (
+              <a
+                href={proof.explorerUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="flex items-center justify-between gap-3 rounded-lg border border-emerald-300/20 bg-emerald-300/10 p-3 text-sm text-emerald-100 transition hover:bg-emerald-300/15"
+              >
+                <span className="truncate">{proof.explorerUrl}</span>
+                <ExternalLink className="size-4 shrink-0" />
+              </a>
+            ) : (
+              <div className="rounded-lg border border-white/10 bg-black/20 p-3 text-sm text-muted-foreground">
+                A real deploy hash and explorer link appear here only after the
+                Casper Testnet RPC accepts the deploy. Demo proof mode is labeled
+                separately and does not claim on-chain confirmation.
+              </div>
+            )}
+          </div>
         </div>
       </CardContent>
     </Card>
