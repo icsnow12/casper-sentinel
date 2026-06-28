@@ -2,7 +2,7 @@ import { CheckCircle2, ExternalLink, ShieldCheck } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 
-const FEATURED_TESTNET_PROOF = {
+export const FEATURED_TESTNET_PROOF = {
   deployHash:
     "3b9a6bccffbc4d1a9972973cb469c038be903a4c452abf1d38136e803b9cfce6",
   explorerUrl:

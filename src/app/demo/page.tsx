@@ -37,9 +37,9 @@ export default function DemoPage() {
           One-click judge demo
         </h1>
         <p className="mt-3 max-w-3xl text-sm leading-6 text-muted-foreground">
-          This guided page runs the full Casper Sentinel story in one place:
-          project intake, multi-agent AI diligence, formal votes, committee
-          resolution, and Casper Testnet proof preparation.
+          In 90 seconds, follow project intake, five AI analysts, agent debate,
+          the reputation-weighted committee vote, final resolution, and a real
+          publicly verifiable Casper Testnet proof.
         </p>
       </section>
 

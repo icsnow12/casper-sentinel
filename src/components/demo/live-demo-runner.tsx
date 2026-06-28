@@ -9,6 +9,7 @@ import {
   Banknote,
   BrainCircuit,
   CheckCircle2,
+  CirclePlay,
   Clock3,
   FileCheck2,
   Fingerprint,
@@ -22,12 +23,16 @@ import {
   Scale,
   ShieldCheck,
   Sparkles,
+  Timer,
   Vote,
 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { FeaturedTestnetProof } from "@/components/casper/featured-testnet-proof";
+import {
+  FEATURED_TESTNET_PROOF,
+  FeaturedTestnetProof,
+} from "@/components/casper/featured-testnet-proof";
 import {
   Card,
   CardContent,
@@ -37,6 +42,7 @@ import {
 import { Progress } from "@/components/ui/progress";
 
 type DemoStatus = "idle" | "running" | "complete" | "error";
+type DemoMode = "manual" | "judge";
 type StepStatus = "pending" | "running" | "complete" | "error";
 
 type AgentOutput = {
@@ -154,12 +160,6 @@ const steps = [
     icon: BrainCircuit,
   },
   {
-    key: "votes",
-    title: "Agent votes",
-    description: "Agents cast formal votes with reputation-aware weights.",
-    icon: Vote,
-  },
-  {
     key: "debate",
     title: "AI debate",
     description: "Agents challenge assumptions, rebut objections, and form consensus.",
@@ -167,8 +167,8 @@ const steps = [
   },
   {
     key: "committee",
-    title: "Committee",
-    description: "The committee locks the governance-ready recommendation inputs.",
+    title: "Committee vote",
+    description: "Five reputation-weighted votes become a committee recommendation.",
     icon: Gavel,
   },
   {
@@ -185,6 +185,27 @@ const steps = [
     icon: LockKeyhole,
   },
 ] as const;
+
+type StepKey = (typeof steps)[number]["key"];
+
+const JUDGE_DEMO_SECONDS = 90;
+const JUDGE_STAGE_END_MS: Record<StepKey, number> = {
+  intake: 6_000,
+  agents: 26_000,
+  debate: 44_000,
+  committee: 59_000,
+  resolution: 73_000,
+  proof: 90_000,
+};
+
+const INITIAL_STEP_STATUS: Record<StepKey, StepStatus> = {
+  intake: "pending",
+  agents: "pending",
+  debate: "pending",
+  committee: "pending",
+  resolution: "pending",
+  proof: "pending",
+};
 
 const agentIcons: Record<AgentOutput["agentType"], typeof BrainCircuit> = {
   TECHNICAL: BrainCircuit,
@@ -283,19 +304,76 @@ async function postJson<T>(url: string, body: unknown): Promise<T> {
   return response.json() as Promise<T>;
 }
 
+async function waitUntilStageEnd(
+  mode: DemoMode,
+  startedAt: number,
+  step: StepKey,
+  manualDelay = 0
+) {
+  const delay =
+    mode === "judge"
+      ? Math.max(0, startedAt + JUDGE_STAGE_END_MS[step] - Date.now())
+      : manualDelay;
+
+  if (delay > 0) {
+    await new Promise((resolve) => setTimeout(resolve, delay));
+  }
+}
+
+function getStepResult(
+  step: StepKey,
+  evaluation: EvaluationResponse | null,
+  debate: DebateResponse | null,
+  committee: CommitteeResponse | null,
+  resolution: ResolutionResponse | null
+) {
+  if (step === "intake") {
+    return `${demoProject.projectName} / ${demoProject.category}`;
+  }
+
+  if (step === "agents") {
+    if (!evaluation) {
+      return "Five specialist reviews queued";
+    }
+
+    const averageScore = Math.round(
+      evaluation.agents.reduce((total, agent) => total + agent.score, 0) /
+        evaluation.agents.length
+    );
+    return `${evaluation.agents.length} agents / ${averageScore} average score`;
+  }
+
+  if (step === "debate") {
+    return debate
+      ? `${debate.consensus.finalConsensusScore} consensus / ${conflictLevel(
+          getDebateHighlights(debate).heatScore
+        )} conflict`
+      : "Challenges and rebuttals queued";
+  }
+
+  if (step === "committee") {
+    return committee
+      ? `${committee.votes.length} weighted votes / ${committee.weightedScore} score`
+      : "Reputation-weighted vote queued";
+  }
+
+  if (step === "resolution") {
+    return resolution
+      ? `${formatLabel(resolution.finalRecommendation)} / ${resolution.finalScore}`
+      : "Final recommendation queued";
+  }
+
+  return `Success / ${FEATURED_TESTNET_PROOF.deployHash.slice(0, 12)}...`;
+}
+
 export function LiveDemoRunner() {
   const searchParams = useSearchParams();
-  const shouldAutorun = searchParams.get("autorun") === "1";
+  const autorun = searchParams.get("autorun");
+  const shouldAutorun = autorun === "1" || autorun === "judge";
   const [status, setStatus] = useState<DemoStatus>("idle");
-  const [stepStatus, setStepStatus] = useState<Record<string, StepStatus>>({
-    intake: "pending",
-    agents: "pending",
-    votes: "pending",
-    debate: "pending",
-    committee: "pending",
-    resolution: "pending",
-    proof: "pending",
-  });
+  const [demoMode, setDemoMode] = useState<DemoMode>("manual");
+  const [stepStatus, setStepStatus] =
+    useState<Record<StepKey, StepStatus>>(INITIAL_STEP_STATUS);
   const [error, setError] = useState<string | null>(null);
   const [evaluation, setEvaluation] = useState<EvaluationResponse | null>(null);
   const [committee, setCommittee] = useState<CommitteeResponse | null>(null);
@@ -304,23 +382,41 @@ export function LiveDemoRunner() {
   const [prepared, setPrepared] = useState<PreparedResponse | null>(null);
   const [proof, setProof] = useState<ProofResponse | null>(null);
   const [hasAutorun, setHasAutorun] = useState(false);
+  const [judgeStartedAt, setJudgeStartedAt] = useState<number | null>(null);
+  const [judgeElapsedSeconds, setJudgeElapsedSeconds] = useState(0);
 
-  const progress = useMemo(() => {
+  const stepProgress = useMemo(() => {
     const completed = Object.values(stepStatus).filter(
       (item) => item === "complete"
     ).length;
     return Math.round((completed / steps.length) * 100);
   }, [stepStatus]);
 
-  const updateStep = useCallback((key: string, value: StepStatus) => {
+  const progress =
+    demoMode === "judge" && status === "running"
+      ? Math.min(
+          100,
+          Math.round((judgeElapsedSeconds / JUDGE_DEMO_SECONDS) * 100)
+        )
+      : stepProgress;
+
+  const activeStep =
+    steps.find((step) => stepStatus[step.key] === "running") ?? null;
+
+  const updateStep = useCallback((key: StepKey, value: StepStatus) => {
     setStepStatus((current) => ({
       ...current,
       [key]: value,
     }));
   }, []);
 
-  const runDemo = useCallback(async () => {
+  const runDemo = useCallback(async (mode: DemoMode) => {
+    const startedAt = Date.now();
+
+    setDemoMode(mode);
     setStatus("running");
+    setJudgeStartedAt(mode === "judge" ? startedAt : null);
+    setJudgeElapsedSeconds(0);
     setError(null);
     setEvaluation(null);
     setCommittee(null);
@@ -331,7 +427,6 @@ export function LiveDemoRunner() {
     setStepStatus({
       intake: "running",
       agents: "pending",
-      votes: "pending",
       debate: "pending",
       committee: "pending",
       resolution: "pending",
@@ -339,7 +434,7 @@ export function LiveDemoRunner() {
     });
 
     try {
-      await new Promise((resolve) => setTimeout(resolve, 350));
+      await waitUntilStageEnd(mode, startedAt, "intake", 350);
       updateStep("intake", "complete");
       updateStep("agents", "running");
 
@@ -348,8 +443,6 @@ export function LiveDemoRunner() {
         demoProject
       );
       setEvaluation(evaluationResult);
-      updateStep("agents", "complete");
-      updateStep("votes", "running");
 
       const committeeResult = await postJson<CommitteeResponse>(
         "/api/committee",
@@ -359,8 +452,8 @@ export function LiveDemoRunner() {
           agents: evaluationResult.agents,
         }
       );
-      setCommittee(committeeResult);
-      updateStep("votes", "complete");
+      await waitUntilStageEnd(mode, startedAt, "agents");
+      updateStep("agents", "complete");
       updateStep("debate", "running");
 
       const debateResult = await postJson<DebateResponse>("/api/debate", {
@@ -369,10 +462,12 @@ export function LiveDemoRunner() {
         agents: evaluationResult.agents,
       });
       setDebate(debateResult);
+      await waitUntilStageEnd(mode, startedAt, "debate");
       updateStep("debate", "complete");
       updateStep("committee", "running");
+      setCommittee(committeeResult);
 
-      await new Promise((resolve) => setTimeout(resolve, 300));
+      await waitUntilStageEnd(mode, startedAt, "committee", 300);
       updateStep("committee", "complete");
       updateStep("resolution", "running");
 
@@ -386,6 +481,7 @@ export function LiveDemoRunner() {
         }
       );
       setResolution(resolutionResult);
+      await waitUntilStageEnd(mode, startedAt, "resolution");
       updateStep("resolution", "complete");
       updateStep("proof", "running");
 
@@ -409,7 +505,9 @@ export function LiveDemoRunner() {
         forceDemo: true,
       });
       setProof(proofResult);
+      await waitUntilStageEnd(mode, startedAt, "proof");
       updateStep("proof", "complete");
+      setJudgeElapsedSeconds(mode === "judge" ? JUDGE_DEMO_SECONDS : 0);
       setStatus("complete");
     } catch (caught) {
       const message =
@@ -419,7 +517,7 @@ export function LiveDemoRunner() {
       setStepStatus((current) => {
         const runningStep = Object.entries(current).find(
           ([, value]) => value === "running"
-        )?.[0];
+        )?.[0] as StepKey | undefined;
 
         return runningStep
           ? {
@@ -432,11 +530,43 @@ export function LiveDemoRunner() {
   }, [updateStep]);
 
   useEffect(() => {
+    if (
+      demoMode !== "judge" ||
+      status !== "running" ||
+      judgeStartedAt === null
+    ) {
+      return;
+    }
+
+    const updateElapsed = () => {
+      setJudgeElapsedSeconds(
+        Math.min(
+          JUDGE_DEMO_SECONDS,
+          Math.floor((Date.now() - judgeStartedAt) / 1000)
+        )
+      );
+    };
+    const interval = window.setInterval(updateElapsed, 250);
+    updateElapsed();
+
+    return () => window.clearInterval(interval);
+  }, [demoMode, judgeStartedAt, status]);
+
+  useEffect(() => {
+    if (demoMode === "judge" && status === "complete") {
+      document.getElementById("judge-final-proof")?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    }
+  }, [demoMode, status]);
+
+  useEffect(() => {
     if (shouldAutorun && !hasAutorun) {
       setHasAutorun(true);
-      void runDemo();
+      void runDemo(autorun === "judge" ? "judge" : "manual");
     }
-  }, [hasAutorun, runDemo, shouldAutorun]);
+  }, [autorun, hasAutorun, runDemo, shouldAutorun]);
 
   return (
     <div className="grid gap-6">
@@ -452,38 +582,68 @@ export function LiveDemoRunner() {
                   Guided judge demo
                 </CardTitle>
                 <p className="mt-2 max-w-xl text-sm leading-6 text-muted-foreground">
-                  One click runs the full autonomous VC DAO story: intake,
-                  agents, votes, debate, committee resolution, a safe demo
-                  receipt, and verified real Casper Testnet proof.
+                  See the autonomous investment DAO move from intake to a
+                  publicly verifiable Casper Testnet result in 90 seconds.
                 </p>
               </div>
-              <Button
-                type="button"
-                className="h-10 w-full sm:w-fit"
-                disabled={status === "running"}
-                onClick={runDemo}
-              >
-                {status === "running" ? (
-                  <Loader2 className="size-4 animate-spin" />
-                ) : (
+              <div className="flex w-full flex-col gap-2 sm:w-auto">
+                <Button
+                  type="button"
+                  className="h-11 w-full sm:w-auto"
+                  disabled={status === "running"}
+                  onClick={() => void runDemo("judge")}
+                >
+                  {status === "running" && demoMode === "judge" ? (
+                    <Loader2 className="size-4 animate-spin" />
+                  ) : (
+                    <CirclePlay className="size-4" />
+                  )}
+                  Start 90s Judge Demo
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-9 w-full sm:w-auto"
+                  disabled={status === "running"}
+                  onClick={() => void runDemo("manual")}
+                >
                   <BrainCircuit className="size-4" />
-                )}
-                Run Live Demo
-              </Button>
+                  Run Live Demo
+                </Button>
+              </div>
             </div>
           </CardHeader>
           <CardContent className="pt-2">
             <div className="mb-4 flex items-center justify-between text-sm">
-              <span className="text-muted-foreground">Demo progress</span>
-              <span className="font-mono text-emerald-100">{progress}%</span>
+              <span className="text-muted-foreground">
+                {demoMode === "judge" ? "90-second judge run" : "Demo progress"}
+              </span>
+              <span className="font-mono text-emerald-100">
+                {demoMode === "judge" && status === "running"
+                  ? `${JUDGE_DEMO_SECONDS - judgeElapsedSeconds}s left`
+                  : `${progress}%`}
+              </span>
             </div>
             <Progress value={progress} className="h-2" />
+
+            {demoMode === "judge" && status === "running" ? (
+              <div className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
+                <Timer className="size-4 text-amber-200" />
+                No wallet or signing required. The final proof is a real public
+                Testnet transaction.
+              </div>
+            ) : null}
 
             {status === "idle" ? (
               <EmptyState />
             ) : null}
 
-            {error ? <ErrorState message={error} onRetry={runDemo} /> : null}
+            {error ? (
+              <ErrorState
+                message={error}
+                onRetry={() => void runDemo(demoMode)}
+              />
+            ) : null}
           </CardContent>
         </Card>
 
@@ -540,6 +700,52 @@ export function LiveDemoRunner() {
         </Card>
       </section>
 
+      {demoMode === "judge" && status === "running" && activeStep ? (
+        <JudgeStageSpotlight
+          step={activeStep}
+          stepNumber={steps.findIndex((step) => step.key === activeStep.key) + 1}
+          result={getStepResult(
+            activeStep.key,
+            evaluation,
+            debate,
+            committee,
+            resolution
+          )}
+          elapsedSeconds={judgeElapsedSeconds}
+        />
+      ) : null}
+
+      {demoMode === "judge" && status === "complete" ? (
+        <section
+          id="judge-final-proof"
+          className="scroll-mt-6 rounded-lg border border-emerald-300/30 bg-emerald-300/[0.06] p-4 sm:p-6"
+        >
+          <div className="mb-5 flex flex-col justify-between gap-3 md:flex-row md:items-end">
+            <div>
+              <Badge className="rounded-lg border border-emerald-300/25 bg-emerald-300/10 text-emerald-100">
+                <CheckCircle2 className="size-4" />
+                90-second decision complete
+              </Badge>
+              <h2 className="mt-3 text-3xl font-semibold sm:text-4xl">
+                Real Casper Testnet Proof
+              </h2>
+              <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
+                The judge workflow uses deterministic demo evaluations and a
+                simulated receipt. The deployment below is real, successful,
+                and publicly verifiable.
+              </p>
+            </div>
+            <Badge
+              variant="outline"
+              className="h-9 w-fit rounded-lg border-emerald-300/25 bg-emerald-300/10 px-3 text-emerald-100"
+            >
+              Status: Success
+            </Badge>
+          </div>
+          <FeaturedTestnetProof />
+        </section>
+      ) : null}
+
       <Card className="rounded-lg border-sky-300/20 bg-sky-300/[0.045] shadow-none">
         <CardHeader className="border-b border-white/10 pb-4">
           <div className="flex items-center gap-3">
@@ -557,16 +763,29 @@ export function LiveDemoRunner() {
         </CardContent>
       </Card>
 
-      <section className="grid gap-3 md:grid-cols-7">
+      <section className="grid gap-3 md:grid-cols-3 xl:grid-cols-6">
         {steps.map((step) => {
           const Icon = step.icon;
           const itemStatus = stepStatus[step.key];
           const debateHighlights = debate ? getDebateHighlights(debate) : null;
+          const result = getStepResult(
+            step.key,
+            evaluation,
+            debate,
+            committee,
+            resolution
+          );
 
           return (
             <div
               key={step.key}
-              className="rounded-lg border border-white/10 bg-black/20 p-3"
+              className={`min-h-[220px] rounded-lg border p-3 transition-colors duration-500 ${
+                itemStatus === "running"
+                  ? "border-amber-200/40 bg-amber-200/[0.08] shadow-[0_0_28px_rgba(253,230,138,0.08)]"
+                  : itemStatus === "complete"
+                    ? "border-emerald-300/20 bg-emerald-300/[0.04]"
+                    : "border-white/10 bg-black/20"
+              }`}
             >
               <div className="flex items-center justify-between gap-3">
                 <Icon className="size-5 text-emerald-200" />
@@ -576,6 +795,19 @@ export function LiveDemoRunner() {
               <p className="mt-2 text-xs leading-5 text-muted-foreground">
                 {step.description}
               </p>
+              <div className="mt-3 border-t border-white/10 pt-3">
+                <p className="text-xs uppercase text-muted-foreground">
+                  Key result
+                </p>
+                <p className="mt-2 text-xs leading-5 text-foreground">
+                  {itemStatus === "pending" ? "Awaiting stage" : result}
+                </p>
+                {itemStatus === "running" ? (
+                  <div className="mt-3 h-1 overflow-hidden rounded-full bg-white/10">
+                    <div className="h-full w-2/3 animate-pulse rounded-full bg-amber-200" />
+                  </div>
+                ) : null}
+              </div>
               {step.key === "debate" && debate && debateHighlights ? (
                 <div className="mt-3 space-y-2 border-t border-white/10 pt-3">
                   <MiniSignal
@@ -761,6 +993,71 @@ export function LiveDemoRunner() {
   );
 }
 
+function JudgeStageSpotlight({
+  step,
+  stepNumber,
+  result,
+  elapsedSeconds,
+}: {
+  step: (typeof steps)[number];
+  stepNumber: number;
+  result: string;
+  elapsedSeconds: number;
+}) {
+  const Icon = step.icon;
+
+  return (
+    <section
+      aria-live="polite"
+      className="overflow-hidden rounded-lg border border-amber-200/30 bg-amber-200/[0.055]"
+    >
+      <div className="grid min-h-[230px] lg:grid-cols-[1fr_0.72fr]">
+        <div className="flex flex-col justify-between p-5 sm:p-6">
+          <div>
+            <div className="flex items-center gap-3">
+              <span className="flex size-11 items-center justify-center rounded-lg border border-amber-200/25 bg-amber-200/10 text-amber-100">
+                <Icon className="size-6" />
+              </span>
+              <div>
+                <p className="text-xs uppercase text-amber-100">
+                  Stage {stepNumber} of {steps.length}
+                </p>
+                <h2 className="mt-1 text-2xl font-semibold sm:text-3xl">
+                  {step.title}
+                </h2>
+              </div>
+            </div>
+            <p className="mt-5 max-w-2xl text-sm leading-7 text-muted-foreground">
+              {step.description}
+            </p>
+          </div>
+          <div className="mt-5 flex items-center gap-2 text-xs text-muted-foreground">
+            <Loader2 className="size-4 animate-spin text-amber-200" />
+            Autonomous workflow advancing
+          </div>
+        </div>
+
+        <div className="flex flex-col justify-center border-t border-white/10 bg-black/20 p-5 sm:p-6 lg:border-t-0 lg:border-l">
+          <p className="text-xs uppercase text-muted-foreground">Key result</p>
+          <p className="mt-3 text-2xl font-semibold text-emerald-100 sm:text-3xl">
+            {result}
+          </p>
+          <div className="mt-6 flex items-center justify-between text-xs text-muted-foreground">
+            <span>Elapsed</span>
+            <span className="font-mono text-foreground">
+              {elapsedSeconds}s / {JUDGE_DEMO_SECONDS}s
+            </span>
+          </div>
+          <Progress
+            value={(elapsedSeconds / JUDGE_DEMO_SECONDS) * 100}
+            className="mt-2 h-2"
+          />
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function MiniSignal({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-center justify-between gap-2 text-xs">
@@ -918,8 +1215,8 @@ function StepBadge({ status }: { status: StepStatus }) {
 function EmptyState() {
   return (
     <div className="mt-4 rounded-lg border border-white/10 bg-black/20 p-4 text-sm text-muted-foreground">
-      The demo has not started yet. Press Run Live Demo to execute the full
-      judging flow without requiring OpenAI credentials or a Casper wallet.
+      Start the paced 90-second judge experience, or use Run Live Demo for the
+      existing fast workflow. Neither path requires a wallet or private key.
     </div>
   );
 }
