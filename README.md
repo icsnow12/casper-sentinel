@@ -1,5 +1,9 @@
 # Casper Sentinel
 
+![Casper Sentinel Banner](docs/images/banner.png)
+
+AI Multi-Agent Governance Platform for Web3
+
 Built for Casper Agentic Buildathon 2026.
 
 Casper Sentinel is an autonomous VC DAO terminal for Web3, DeFi, and RWA investment governance. A project is submitted once, then specialized AI agents perform diligence, cast reputation-weighted votes, debate each other, generate an investment committee resolution, and prepare a Casper Testnet proof for the final decision hash.
